@@ -100,14 +100,14 @@ Filters compose: `color:red is:favorited novel` finds red, favorited items match
 
 ## Settings
 
-| Setting | Default | What it does |
-| --- | --- | --- |
-| `sweetShelf.confirmRemoveCategory` | `true` | Show a confirmation dialog before removing a non-empty category. Real files are never affected. |
-| `sweetShelf.defaultFileClickAction` | `open` | What happens when you click a file (`open` or `openToSide`). |
+| Setting                               | Default  | What it does                                                                                                                                            |
+| ------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sweetShelf.confirmRemoveCategory`    | `true`   | Show a confirmation dialog before removing a non-empty category. Real files are never affected.                                                         |
+| `sweetShelf.defaultFileClickAction`   | `open`   | What happens when you click a file (`open` or `openToSide`).                                                                                            |
 | `sweetShelf.defaultFolderClickAction` | `browse` | What happens when you click a folder. `browse` expands inline (recommended). `openInCurrentWindow` and `openInNewWindow` change your VS Code workspace. |
-| `sweetShelf.showHiddenFiles` | `false` | Show dotfiles when browsing folders inline. |
-| `sweetShelf.showFileExtensions` | `true` | Show file extensions in shelf labels. Aliases always show as typed. |
-| `sweetShelf.maxRecentItems` | `20` | Cap on the Recent section (1–100). |
+| `sweetShelf.showHiddenFiles`          | `false`  | Show dotfiles when browsing folders inline.                                                                                                             |
+| `sweetShelf.showFileExtensions`       | `true`   | Show file extensions in shelf labels. Aliases always show as typed.                                                                                     |
+| `sweetShelf.maxRecentItems`           | `20`     | Cap on the Recent section (1–100).                                                                                                                      |
 
 ## Commands
 

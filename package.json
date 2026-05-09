@@ -74,13 +74,20 @@
         },
         "sweetShelf.defaultFileClickAction": {
           "type": "string",
-          "enum": ["open", "openToSide"],
+          "enum": [
+            "open",
+            "openToSide"
+          ],
           "default": "open",
           "description": "What happens when you click a file in Sweet Shelf."
         },
         "sweetShelf.defaultFolderClickAction": {
           "type": "string",
-          "enum": ["browse", "openInCurrentWindow", "openInNewWindow"],
+          "enum": [
+            "browse",
+            "openInCurrentWindow",
+            "openInNewWindow"
+          ],
           "default": "browse",
           "description": "What happens when you click a folder in Sweet Shelf. 'browse' expands the folder inline without changing your workspace (recommended). 'openInCurrentWindow' replaces your current workspace. 'openInNewWindow' opens a new VS Code window."
         },
@@ -104,112 +111,470 @@
       }
     },
     "commands": [
-      { "command": "sweetShelf.addFile", "title": "Add File", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.addFolder", "title": "Add Folder", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.newCategory", "title": "New Category", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.newSubcategory", "title": "New Subcategory", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.renameCategory", "title": "Rename", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.removeCategory", "title": "Remove from Sweet Shelf", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.removeFile", "title": "Remove from Sweet Shelf", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.removeFolder", "title": "Remove from Sweet Shelf", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.moveCategoryUp", "title": "Move Up", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.moveCategoryDown", "title": "Move Down", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.openFile", "title": "Open", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.openFileToSide", "title": "Open to Side", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.openFolderInCurrentWindow", "title": "Open in Current Window", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.openFolderInNewWindow", "title": "Open in New Window", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.openTerminalHere", "title": "Open Terminal Here", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.copyPath", "title": "Copy Path", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.revealInFinder", "title": "Reveal in Finder", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.revealInExplorer", "title": "Reveal in File Explorer", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.openContainingFolder", "title": "Open Containing Folder", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.addFolderEntryToShelf", "title": "Add to Category…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.addFolderEntryToFavorites", "title": "Add to Favorites…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.renameFileDisplayName", "title": "Rename Display Name…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.clearFileDisplayName", "title": "Clear Display Name", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.renameFolderDisplayName", "title": "Rename Display Name…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.clearFolderDisplayName", "title": "Clear Display Name", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.addToFavorites", "title": "Add to Favorites", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.removeFromFavorites", "title": "Remove from Favorites", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.moveFavoriteUp", "title": "Move Up", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.moveFavoriteDown", "title": "Move Down", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.removeFromRecent", "title": "Remove from Recent", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.clearRecent", "title": "Clear Recent", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.enterFocus", "title": "Focus on this", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.exitFocus", "title": "Show All", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.renameFileOnDisk", "title": "Rename File on Disk…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.renameFolderOnDisk", "title": "Rename Folder on Disk…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.locateAgain", "title": "Locate Again…", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.revealParentFolder", "title": "Reveal Parent Folder", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.copyMissingPath", "title": "Copy Missing Path", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.validatePaths", "title": "Validate Paths", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorRed", "title": "🟥 Red", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorOrange", "title": "🟧 Orange", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorYellow", "title": "🟨 Yellow", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorGreen", "title": "🟩 Green", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorBlue", "title": "🟦 Blue", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorPurple", "title": "🟪 Purple", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.setColorGray", "title": "⬜ Gray", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.clearColor", "title": "⊘ None", "category": "Sweet Shelf" },
-      { "command": "sweetShelf._openFileDefault", "title": "Open", "category": "Sweet Shelf" },
-      { "command": "sweetShelf._openFolderDefault", "title": "Open", "category": "Sweet Shelf" },
-      { "command": "sweetShelf._brokenClick", "title": "Missing", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.search", "title": "Search Shelf", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.exportShelf", "title": "Export Shelf", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.importShelf", "title": "Import Shelf", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.revealConfigFile", "title": "Reveal Config File", "category": "Sweet Shelf" }
+      {
+        "command": "sweetShelf.addFile",
+        "title": "Add File",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.addFolder",
+        "title": "Add Folder",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.newCategory",
+        "title": "New Category",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.newSubcategory",
+        "title": "New Subcategory",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.renameCategory",
+        "title": "Rename",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.removeCategory",
+        "title": "Remove from Sweet Shelf",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.removeFile",
+        "title": "Remove from Sweet Shelf",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.removeFolder",
+        "title": "Remove from Sweet Shelf",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.moveCategoryUp",
+        "title": "Move Up",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.moveCategoryDown",
+        "title": "Move Down",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openFile",
+        "title": "Open",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openFileToSide",
+        "title": "Open to Side",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openFolderInCurrentWindow",
+        "title": "Open in Current Window",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openFolderInNewWindow",
+        "title": "Open in New Window",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openTerminalHere",
+        "title": "Open Terminal Here",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.copyPath",
+        "title": "Copy Path",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.revealInFinder",
+        "title": "Reveal in Finder",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.revealInExplorer",
+        "title": "Reveal in File Explorer",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openContainingFolder",
+        "title": "Open Containing Folder",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.addFolderEntryToShelf",
+        "title": "Add to Category…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.addFolderEntryToFavorites",
+        "title": "Add to Favorites…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.renameFileDisplayName",
+        "title": "Rename Display Name…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.clearFileDisplayName",
+        "title": "Clear Display Name",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.renameFolderDisplayName",
+        "title": "Rename Display Name…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.clearFolderDisplayName",
+        "title": "Clear Display Name",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.addToFavorites",
+        "title": "Add to Favorites",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.removeFromFavorites",
+        "title": "Remove from Favorites",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.moveFavoriteUp",
+        "title": "Move Up",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.moveFavoriteDown",
+        "title": "Move Down",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.removeFromRecent",
+        "title": "Remove from Recent",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.clearRecent",
+        "title": "Clear Recent",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.enterFocus",
+        "title": "Focus on this",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.exitFocus",
+        "title": "Show All",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.renameFileOnDisk",
+        "title": "Rename File on Disk…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.renameFolderOnDisk",
+        "title": "Rename Folder on Disk…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.locateAgain",
+        "title": "Locate Again…",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.revealParentFolder",
+        "title": "Reveal Parent Folder",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.copyMissingPath",
+        "title": "Copy Missing Path",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.validatePaths",
+        "title": "Validate Paths",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorRed",
+        "title": "🟥 Red",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorOrange",
+        "title": "🟧 Orange",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorYellow",
+        "title": "🟨 Yellow",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorGreen",
+        "title": "🟩 Green",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorBlue",
+        "title": "🟦 Blue",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorPurple",
+        "title": "🟪 Purple",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.setColorGray",
+        "title": "⬜ Gray",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.clearColor",
+        "title": "⊘ None",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf._openFileDefault",
+        "title": "Open",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf._openFolderDefault",
+        "title": "Open",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf._brokenClick",
+        "title": "Missing",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.search",
+        "title": "Search Shelf",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.exportShelf",
+        "title": "Export Shelf",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.importShelf",
+        "title": "Import Shelf",
+        "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.revealConfigFile",
+        "title": "Reveal Config File",
+        "category": "Sweet Shelf"
+      }
     ],
     "submenus": [
-      { "id": "sweetShelf.add", "label": "Add to Sweet Shelf", "icon": "$(add)" },
-      { "id": "sweetShelf.setColor", "label": "Set Color" }
+      {
+        "id": "sweetShelf.add",
+        "label": "Add to Sweet Shelf",
+        "icon": "$(add)"
+      },
+      {
+        "id": "sweetShelf.setColor",
+        "label": "Set Color"
+      }
     ],
     "menus": {
       "commandPalette": [
-        { "command": "sweetShelf.newSubcategory", "when": "false" },
-        { "command": "sweetShelf.renameCategory", "when": "false" },
-        { "command": "sweetShelf.removeCategory", "when": "false" },
-        { "command": "sweetShelf.removeFile", "when": "false" },
-        { "command": "sweetShelf.removeFolder", "when": "false" },
-        { "command": "sweetShelf.moveCategoryUp", "when": "false" },
-        { "command": "sweetShelf.moveCategoryDown", "when": "false" },
-        { "command": "sweetShelf.openFile", "when": "false" },
-        { "command": "sweetShelf.openFileToSide", "when": "false" },
-        { "command": "sweetShelf.openFolderInCurrentWindow", "when": "false" },
-        { "command": "sweetShelf.openFolderInNewWindow", "when": "false" },
-        { "command": "sweetShelf.openTerminalHere", "when": "false" },
-        { "command": "sweetShelf.copyPath", "when": "false" },
-        { "command": "sweetShelf.revealInFinder", "when": "false" },
-        { "command": "sweetShelf.revealInExplorer", "when": "false" },
-        { "command": "sweetShelf.openContainingFolder", "when": "false" },
-        { "command": "sweetShelf.addFolderEntryToShelf", "when": "false" },
-        { "command": "sweetShelf.addFolderEntryToFavorites", "when": "false" },
-        { "command": "sweetShelf.renameFileDisplayName", "when": "false" },
-        { "command": "sweetShelf.clearFileDisplayName", "when": "false" },
-        { "command": "sweetShelf.renameFolderDisplayName", "when": "false" },
-        { "command": "sweetShelf.clearFolderDisplayName", "when": "false" },
-        { "command": "sweetShelf.addToFavorites", "when": "false" },
-        { "command": "sweetShelf.removeFromFavorites", "when": "false" },
-        { "command": "sweetShelf.moveFavoriteUp", "when": "false" },
-        { "command": "sweetShelf.moveFavoriteDown", "when": "false" },
-        { "command": "sweetShelf.removeFromRecent", "when": "false" },
-        { "command": "sweetShelf.enterFocus", "when": "false" },
-        { "command": "sweetShelf.exitFocus", "when": "sweetShelf.focused" },
-        { "command": "sweetShelf.renameFileOnDisk", "when": "false" },
-        { "command": "sweetShelf.renameFolderOnDisk", "when": "false" },
-        { "command": "sweetShelf.locateAgain", "when": "false" },
-        { "command": "sweetShelf.revealParentFolder", "when": "false" },
-        { "command": "sweetShelf.copyMissingPath", "when": "false" },
-        { "command": "sweetShelf.setColorRed", "when": "false" },
-        { "command": "sweetShelf.setColorOrange", "when": "false" },
-        { "command": "sweetShelf.setColorYellow", "when": "false" },
-        { "command": "sweetShelf.setColorGreen", "when": "false" },
-        { "command": "sweetShelf.setColorBlue", "when": "false" },
-        { "command": "sweetShelf.setColorPurple", "when": "false" },
-        { "command": "sweetShelf.setColorGray", "when": "false" },
-        { "command": "sweetShelf.clearColor", "when": "false" },
-        { "command": "sweetShelf._openFileDefault", "when": "false" },
-        { "command": "sweetShelf._openFolderDefault", "when": "false" },
-        { "command": "sweetShelf._brokenClick", "when": "false" }
+        {
+          "command": "sweetShelf.newSubcategory",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.renameCategory",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.removeCategory",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.removeFile",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.removeFolder",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.moveCategoryUp",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.moveCategoryDown",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.openFile",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.openFileToSide",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.openFolderInCurrentWindow",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.openFolderInNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.openTerminalHere",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.revealInFinder",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.revealInExplorer",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.openContainingFolder",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.addFolderEntryToShelf",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.addFolderEntryToFavorites",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.renameFileDisplayName",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.clearFileDisplayName",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.renameFolderDisplayName",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.clearFolderDisplayName",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.addToFavorites",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.removeFromFavorites",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.moveFavoriteUp",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.moveFavoriteDown",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.removeFromRecent",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.enterFocus",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.exitFocus",
+          "when": "sweetShelf.focused"
+        },
+        {
+          "command": "sweetShelf.renameFileOnDisk",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.renameFolderOnDisk",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.locateAgain",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.revealParentFolder",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.copyMissingPath",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorRed",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorOrange",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorYellow",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorGreen",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorBlue",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorPurple",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.setColorGray",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf.clearColor",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf._openFileDefault",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf._openFolderDefault",
+          "when": "false"
+        },
+        {
+          "command": "sweetShelf._brokenClick",
+          "when": "false"
+        }
       ],
       "view/title": [
         {
@@ -224,19 +589,52 @@
         }
       ],
       "sweetShelf.add": [
-        { "command": "sweetShelf.newCategory", "group": "1_create@1" },
-        { "command": "sweetShelf.addFile",     "group": "1_create@2" },
-        { "command": "sweetShelf.addFolder",   "group": "1_create@3" }
+        {
+          "command": "sweetShelf.newCategory",
+          "group": "1_create@1"
+        },
+        {
+          "command": "sweetShelf.addFile",
+          "group": "1_create@2"
+        },
+        {
+          "command": "sweetShelf.addFolder",
+          "group": "1_create@3"
+        }
       ],
       "sweetShelf.setColor": [
-        { "command": "sweetShelf.clearColor",      "group": "1_clear@1" },
-        { "command": "sweetShelf.setColorRed",     "group": "2_color@1" },
-        { "command": "sweetShelf.setColorOrange",  "group": "2_color@2" },
-        { "command": "sweetShelf.setColorYellow",  "group": "2_color@3" },
-        { "command": "sweetShelf.setColorGreen",   "group": "2_color@4" },
-        { "command": "sweetShelf.setColorBlue",    "group": "2_color@5" },
-        { "command": "sweetShelf.setColorPurple",  "group": "2_color@6" },
-        { "command": "sweetShelf.setColorGray",    "group": "2_color@7" }
+        {
+          "command": "sweetShelf.clearColor",
+          "group": "1_clear@1"
+        },
+        {
+          "command": "sweetShelf.setColorRed",
+          "group": "2_color@1"
+        },
+        {
+          "command": "sweetShelf.setColorOrange",
+          "group": "2_color@2"
+        },
+        {
+          "command": "sweetShelf.setColorYellow",
+          "group": "2_color@3"
+        },
+        {
+          "command": "sweetShelf.setColorGreen",
+          "group": "2_color@4"
+        },
+        {
+          "command": "sweetShelf.setColorBlue",
+          "group": "2_color@5"
+        },
+        {
+          "command": "sweetShelf.setColorPurple",
+          "group": "2_color@6"
+        },
+        {
+          "command": "sweetShelf.setColorGray",
+          "group": "2_color@7"
+        }
       ],
       "view/item/context": [
         {
@@ -244,7 +642,6 @@
           "when": "view == sweetShelf.libraryView && viewItem == focusHeader",
           "group": "1_exit"
         },
-
         {
           "command": "sweetShelf.newSubcategory",
           "when": "view =~ /^sweetShelf\\./ && viewItem == category",
@@ -290,7 +687,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "9_remove"
         },
-
         {
           "command": "sweetShelf.openFile",
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
@@ -371,7 +767,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/",
           "group": "9_remove"
         },
-
         {
           "command": "sweetShelf.openFolderInCurrentWindow",
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
@@ -462,7 +857,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/",
           "group": "9_remove"
         },
-
         {
           "command": "sweetShelf.openFile",
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.file/",
@@ -558,7 +952,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "9_remove"
         },
-
         {
           "command": "sweetShelf.openFile",
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.file/",
@@ -634,7 +1027,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.folder/",
           "group": "9_remove"
         },
-
         {
           "command": "sweetShelf.openFile",
           "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
@@ -675,7 +1067,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
           "group": "8_pin@2"
         },
-
         {
           "command": "sweetShelf.openFolderInNewWindow",
           "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
@@ -716,7 +1107,6 @@
           "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
           "group": "8_pin@2"
         },
-
         {
           "command": "sweetShelf.revealInFinder",
           "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.symlink && isMac",
