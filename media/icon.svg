@@ -1,0 +1,14 @@
+<!-- Sweet Shelf · Citrus slice (filled wedge) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- filled wedge: top-right (300° → 0°) -->
+  <path d="M12 12 L17 3.34 A10 10 0 0 1 22 12 Z"
+        fill="#F4C430" stroke="none"/>
+  <!-- outline + diameters -->
+  <g fill="none" stroke="currentColor" stroke-width="1.75"
+     stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M2 12 L22 12"/>
+    <path d="M7 3.34 L17 20.66"/>
+    <path d="M7 20.66 L17 3.34"/>
+  </g>
+</svg>
