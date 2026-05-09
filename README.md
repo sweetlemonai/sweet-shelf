@@ -83,7 +83,7 @@ Power-user filters at the start of the query:
 
 - `color:red` (any of the seven colors) — only items with that color label
 - `is:favorited` — only favorited items
-- `is:broken` — only refs whose paths are missing
+- `is:broken` — only items whose paths are missing
 
 Filters compose: `color:red is:favorited novel` finds red, favorited items matching "novel". Filters parse only at the start of the query and vanish from the input once recognized so the rest of what you type fuzzy-matches normally.
 

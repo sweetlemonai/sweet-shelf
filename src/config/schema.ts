@@ -1,5 +1,4 @@
 import {
-  ALL_SECTION_IDS,
   DEFAULT_SHELF_CONFIG,
   MAX_CATEGORY_DEPTH,
   MAX_CATEGORY_LABEL_LENGTH,
@@ -7,7 +6,6 @@ import {
   type CategoryChild,
   type FileRef,
   type FolderRef,
-  type SectionId,
   type ShelfConfig,
 } from "../shelf/types";
 import { isColorLabel, type ColorLabel } from "../shelf/color";
@@ -58,10 +56,13 @@ export function validateShelfConfig(input: unknown): ValidationResult {
     return failure(`unsupported version: ${JSON.stringify(input.version)}`);
   }
 
-  const order = input.sectionOrder;
-  if (!Array.isArray(order) || !isValidSectionOrder(order)) {
-    return failure(
-      "sectionOrder must contain exactly the ids: library, favorites, recent",
+  // `sectionOrder` was a v1 field through Task 11. Task 12 split the
+  // sidebar into separate VS Code views — VS Code now owns the order
+  // natively. Old configs may still have the field; we drop it
+  // silently and log a one-line note for the curious.
+  if ((input as Record<string, unknown>).sectionOrder !== undefined) {
+    warnings.push(
+      "sectionOrder was dropped — sidebar view ordering is now managed by VS Code.",
     );
   }
 
@@ -139,7 +140,6 @@ export function validateShelfConfig(input: unknown): ValidationResult {
     ok: true,
     value: {
       version: 1,
-      sectionOrder: order,
       favoritesOrder,
       focusedItemId,
       library,
@@ -159,7 +159,6 @@ export function serializeShelfConfig(config: ShelfConfig): string {
 export function cloneDefault(): ShelfConfig {
   return {
     version: DEFAULT_SHELF_CONFIG.version,
-    sectionOrder: [...DEFAULT_SHELF_CONFIG.sectionOrder],
     favoritesOrder: [...DEFAULT_SHELF_CONFIG.favoritesOrder],
     focusedItemId: DEFAULT_SHELF_CONFIG.focusedItemId,
     library: [],
@@ -467,22 +466,4 @@ function failure(error: string, warnings: string[] = []): ValidationResult {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isValidSectionOrder(order: unknown[]): order is SectionId[] {
-  if (order.length !== ALL_SECTION_IDS.length) {
-    return false;
-  }
-  const seen = new Set<string>();
-  for (const id of order) {
-    if (typeof id !== "string" || !isSectionId(id) || seen.has(id)) {
-      return false;
-    }
-    seen.add(id);
-  }
-  return seen.size === ALL_SECTION_IDS.length;
-}
-
-function isSectionId(value: string): value is SectionId {
-  return (ALL_SECTION_IDS as readonly string[]).includes(value);
 }

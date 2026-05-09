@@ -38,7 +38,6 @@ import {
   type CategoryChild,
   type FileRef,
   type FolderRef,
-  type SectionId,
   type ShelfConfig,
 } from "./types";
 
@@ -103,11 +102,6 @@ export class ShelfStore implements vscode.Disposable {
   /** Read-only snapshot of current state. Treat the result as immutable. */
   get config(): Readonly<ShelfConfig> {
     return this.state;
-  }
-
-  /** Convenience accessor for the current section order. */
-  get sectionOrder(): readonly SectionId[] {
-    return this.state.sectionOrder;
   }
 
   /** Read-only snapshot of the Library forest (top-level categories). */
@@ -405,6 +399,69 @@ export class ShelfStore implements vscode.Disposable {
     }
     const ref = makeFolderRef(canonical);
     insertChild(parent, ref);
+    this.brokenLinks?.markAsExisting(canonical);
+    this.notifyChanged();
+    return ref;
+  }
+
+  /**
+   * Add a file ref AND favorite it in one atomic mutation. Throws
+   * `AlreadyOnShelfError` if the path is already on the shelf — the
+   * command handler then offers the user the option of favoriting
+   * the existing ref instead.
+   *
+   * Inlines the work of `addFile` + `favoriteFile` so a single
+   * `notifyChanged` covers both, the tree refreshes once, and the
+   * favorite never appears momentarily un-starred between the two
+   * events.
+   */
+  addAndFavoriteFile(parentCategoryId: string, absolutePath: string): FileRef {
+    if (!nodePath.isAbsolute(absolutePath)) {
+      throw new Error("Sweet Shelf needs an absolute path.");
+    }
+    const parent = this.findCategory(parentCategoryId);
+    if (!parent) {
+      throw new Error("That category is no longer on the shelf.");
+    }
+    const canonical = canonicalizePath(absolutePath);
+    const existing = findExistingReferenceByPath(this.state.library, canonical);
+    if (existing) {
+      throw new AlreadyOnShelfError(existing.ref, existing.parentLabel);
+    }
+    const ref = makeFileRef(canonical);
+    insertChild(parent, ref);
+    ref.favoritedAt = new Date().toISOString();
+    if (!this.state.favoritesOrder.includes(ref.id)) {
+      this.state.favoritesOrder.push(ref.id);
+    }
+    this.brokenLinks?.markAsExisting(canonical);
+    this.notifyChanged();
+    return ref;
+  }
+
+  /** Add a folder ref AND favorite it. See `addAndFavoriteFile`. */
+  addAndFavoriteFolder(
+    parentCategoryId: string,
+    absolutePath: string,
+  ): FolderRef {
+    if (!nodePath.isAbsolute(absolutePath)) {
+      throw new Error("Sweet Shelf needs an absolute path.");
+    }
+    const parent = this.findCategory(parentCategoryId);
+    if (!parent) {
+      throw new Error("That category is no longer on the shelf.");
+    }
+    const canonical = canonicalizePath(absolutePath);
+    const existing = findExistingReferenceByPath(this.state.library, canonical);
+    if (existing) {
+      throw new AlreadyOnShelfError(existing.ref, existing.parentLabel);
+    }
+    const ref = makeFolderRef(canonical);
+    insertChild(parent, ref);
+    ref.favoritedAt = new Date().toISOString();
+    if (!this.state.favoritesOrder.includes(ref.id)) {
+      this.state.favoritesOrder.push(ref.id);
+    }
     this.brokenLinks?.markAsExisting(canonical);
     this.notifyChanged();
     return ref;
@@ -1032,15 +1089,6 @@ export class ShelfStore implements vscode.Disposable {
   }
 
   /* ─────────────── Misc ─────────────── */
-
-  /**
-   * Replace section order. Used (eventually) by drag-to-reorder; exposed
-   * now so the schema round-trip is exercised end-to-end.
-   */
-  setSectionOrder(order: SectionId[]): void {
-    this.state = { ...this.state, sectionOrder: [...order] };
-    this.notifyChanged();
-  }
 
   protected notifyChanged(): void {
     this._onDidChange.fire();

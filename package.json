@@ -2,7 +2,7 @@
   "name": "sweet-shelf",
   "displayName": "Sweet Shelf",
   "description": "Organize the files, folders, notes, and ideas you keep coming back to — all in one VS Code sidebar.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "sweet-lemon",
   "license": "MIT",
   "homepage": "https://github.com/sweetlemonai/sweet-shelf#readme",
@@ -49,9 +49,18 @@
     "views": {
       "sweetShelf": [
         {
-          "id": "sweetShelf.mainView",
-          "name": "Sweet Shelf",
-          "contextualTitle": "Sweet Shelf"
+          "id": "sweetShelf.libraryView",
+          "name": "Library"
+        },
+        {
+          "id": "sweetShelf.favoritesView",
+          "name": "Favorites",
+          "when": "!sweetShelf.focused"
+        },
+        {
+          "id": "sweetShelf.recentView",
+          "name": "Recent",
+          "when": "!sweetShelf.focused"
         }
       ]
     },
@@ -114,7 +123,8 @@
       { "command": "sweetShelf.revealInFinder", "title": "Reveal in Finder", "category": "Sweet Shelf" },
       { "command": "sweetShelf.revealInExplorer", "title": "Reveal in File Explorer", "category": "Sweet Shelf" },
       { "command": "sweetShelf.openContainingFolder", "title": "Open Containing Folder", "category": "Sweet Shelf" },
-      { "command": "sweetShelf.addFolderEntryToShelf", "title": "Add to Sweet Shelf", "category": "Sweet Shelf" },
+      { "command": "sweetShelf.addFolderEntryToShelf", "title": "Add to Category…", "category": "Sweet Shelf" },
+      { "command": "sweetShelf.addFolderEntryToFavorites", "title": "Add to Favorites…", "category": "Sweet Shelf" },
       { "command": "sweetShelf.renameFileDisplayName", "title": "Rename Display Name…", "category": "Sweet Shelf" },
       { "command": "sweetShelf.clearFileDisplayName", "title": "Clear Display Name", "category": "Sweet Shelf" },
       { "command": "sweetShelf.renameFolderDisplayName", "title": "Rename Display Name…", "category": "Sweet Shelf" },
@@ -172,6 +182,7 @@
         { "command": "sweetShelf.revealInExplorer", "when": "false" },
         { "command": "sweetShelf.openContainingFolder", "when": "false" },
         { "command": "sweetShelf.addFolderEntryToShelf", "when": "false" },
+        { "command": "sweetShelf.addFolderEntryToFavorites", "when": "false" },
         { "command": "sweetShelf.renameFileDisplayName", "when": "false" },
         { "command": "sweetShelf.clearFileDisplayName", "when": "false" },
         { "command": "sweetShelf.renameFolderDisplayName", "when": "false" },
@@ -203,7 +214,12 @@
       "view/title": [
         {
           "submenu": "sweetShelf.add",
-          "when": "view == sweetShelf.mainView",
+          "when": "view == sweetShelf.libraryView",
+          "group": "navigation"
+        },
+        {
+          "command": "sweetShelf.clearRecent",
+          "when": "view == sweetShelf.recentView",
           "group": "navigation"
         }
       ],
@@ -224,501 +240,501 @@
       ],
       "view/item/context": [
         {
-          "command": "sweetShelf.newCategory",
-          "when": "view == sweetShelf.mainView && viewItem == section.library",
-          "group": "1_create"
-        },
-        {
-          "command": "sweetShelf.clearRecent",
-          "when": "view == sweetShelf.mainView && viewItem == section.recent",
-          "group": "9_clear"
-        },
-        {
           "command": "sweetShelf.exitFocus",
-          "when": "view == sweetShelf.mainView && viewItem == focusHeader",
+          "when": "view == sweetShelf.libraryView && viewItem == focusHeader",
           "group": "1_exit"
         },
 
         {
           "command": "sweetShelf.newSubcategory",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "1_create@1"
         },
         {
           "command": "sweetShelf.addFile",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "1_create@2"
         },
         {
           "command": "sweetShelf.addFolder",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "1_create@3"
         },
         {
           "command": "sweetShelf.renameCategory",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "2_modify@1"
         },
         {
           "command": "sweetShelf.moveCategoryUp",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "2_modify@2"
         },
         {
           "command": "sweetShelf.moveCategoryDown",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "2_modify@3"
         },
         {
           "submenu": "sweetShelf.setColor",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "5_color"
         },
         {
           "command": "sweetShelf.enterFocus",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "7_focus"
         },
         {
           "command": "sweetShelf.removeCategory",
-          "when": "view == sweetShelf.mainView && viewItem == category",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "9_remove"
         },
 
         {
           "command": "sweetShelf.openFile",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFileToSide",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/) && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/) && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/) && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/) && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/) && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/) && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "2_locate@2"
         },
         {
           "command": "sweetShelf.renameFileDisplayName",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "3_rename@1"
         },
         {
           "command": "sweetShelf.clearFileDisplayName",
-          "when": "view == sweetShelf.mainView && (viewItem == file.aliased || viewItem == file.aliased.favorited)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == file.aliased || viewItem == file.aliased.favorited)",
           "group": "3_rename@2"
         },
         {
           "command": "sweetShelf.renameFileOnDisk",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "3_rename@3"
         },
         {
           "command": "sweetShelf.addToFavorites",
-          "when": "view == sweetShelf.mainView && (viewItem == file || viewItem == file.aliased)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == file || viewItem == file.aliased)",
           "group": "4_favorite"
         },
         {
           "command": "sweetShelf.removeFromFavorites",
-          "when": "view == sweetShelf.mainView && (viewItem == file.favorited || viewItem == file.aliased.favorited)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == file.favorited || viewItem == file.aliased.favorited)",
           "group": "4_favorite"
         },
         {
           "submenu": "sweetShelf.setColor",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "5_color"
         },
         {
           "command": "sweetShelf.locateAgain",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file\\.(.*\\.)?missing$/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file\\.(.*\\.)?missing$/",
           "group": "1_recover@1"
         },
         {
           "command": "sweetShelf.revealParentFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file\\.(.*\\.)?missing$/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file\\.(.*\\.)?missing$/",
           "group": "1_recover@2"
         },
         {
           "command": "sweetShelf.copyMissingPath",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file\\.(.*\\.)?missing$/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file\\.(.*\\.)?missing$/",
           "group": "1_recover@3"
         },
         {
           "command": "sweetShelf.removeFile",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^file($|\\.)/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^file($|\\.)/",
           "group": "9_remove"
         },
 
         {
           "command": "sweetShelf.openFolderInCurrentWindow",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFolderInNewWindow",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/) && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/) && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/) && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/) && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/) && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/) && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openTerminalHere",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "2_locate@2"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "2_locate@3"
         },
         {
           "command": "sweetShelf.renameFolderDisplayName",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "3_rename@1"
         },
         {
           "command": "sweetShelf.clearFolderDisplayName",
-          "when": "view == sweetShelf.mainView && (viewItem == folder.aliased || viewItem == folder.aliased.favorited)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == folder.aliased || viewItem == folder.aliased.favorited)",
           "group": "3_rename@2"
         },
         {
           "command": "sweetShelf.renameFolderOnDisk",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "3_rename@3"
         },
         {
           "command": "sweetShelf.addToFavorites",
-          "when": "view == sweetShelf.mainView && (viewItem == folder || viewItem == folder.aliased)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == folder || viewItem == folder.aliased)",
           "group": "4_favorite"
         },
         {
           "command": "sweetShelf.removeFromFavorites",
-          "when": "view == sweetShelf.mainView && (viewItem == folder.favorited || viewItem == folder.aliased.favorited)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == folder.favorited || viewItem == folder.aliased.favorited)",
           "group": "4_favorite"
         },
         {
           "submenu": "sweetShelf.setColor",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "5_color"
         },
         {
           "command": "sweetShelf.enterFocus",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/ && !(viewItem =~ /\\.missing$/)",
           "group": "7_focus"
         },
         {
           "command": "sweetShelf.locateAgain",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder\\.(.*\\.)?missing$/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder\\.(.*\\.)?missing$/",
           "group": "1_recover@1"
         },
         {
           "command": "sweetShelf.revealParentFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder\\.(.*\\.)?missing$/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder\\.(.*\\.)?missing$/",
           "group": "1_recover@2"
         },
         {
           "command": "sweetShelf.copyMissingPath",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder\\.(.*\\.)?missing$/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder\\.(.*\\.)?missing$/",
           "group": "1_recover@3"
         },
         {
           "command": "sweetShelf.removeFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^folder($|\\.)/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^folder($|\\.)/",
           "group": "9_remove"
         },
 
         {
           "command": "sweetShelf.openFile",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.file/",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFileToSide",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.file/",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.openFolderInCurrentWindow",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFolderInNewWindow",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./ && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./ && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./ && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./ && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./ && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./ && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openTerminalHere",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "2_locate@2"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./",
           "group": "2_locate@3"
         },
         {
           "command": "sweetShelf.renameFileDisplayName",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.file/",
           "group": "3_rename@1"
         },
         {
           "command": "sweetShelf.renameFolderDisplayName",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "3_rename@1"
         },
         {
           "command": "sweetShelf.clearFileDisplayName",
-          "when": "view == sweetShelf.mainView && viewItem == favoritesEntry.file.aliased",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == favoritesEntry.file.aliased",
           "group": "3_rename@2"
         },
         {
           "command": "sweetShelf.clearFolderDisplayName",
-          "when": "view == sweetShelf.mainView && viewItem == favoritesEntry.folder.aliased",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == favoritesEntry.folder.aliased",
           "group": "3_rename@2"
         },
         {
           "command": "sweetShelf.moveFavoriteUp",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./",
           "group": "4_reorder@1"
         },
         {
           "command": "sweetShelf.moveFavoriteDown",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./",
           "group": "4_reorder@2"
         },
         {
           "command": "sweetShelf.removeFromFavorites",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\./",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\./",
           "group": "5_unfavorite"
         },
         {
           "command": "sweetShelf.enterFocus",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "7_focus"
         },
         {
           "command": "sweetShelf.removeFile",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.file/",
           "group": "9_remove"
         },
         {
           "command": "sweetShelf.removeFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^favoritesEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^favoritesEntry\\.folder/",
           "group": "9_remove"
         },
 
         {
           "command": "sweetShelf.openFile",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.file/",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFileToSide",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.file/",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.openFolderInCurrentWindow",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.folder/",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFolderInNewWindow",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.folder/",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\./ && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\./ && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\./ && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\./ && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\./ && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\./ && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openTerminalHere",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.folder/",
           "group": "2_locate@2"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\./",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\./",
           "group": "2_locate@3"
         },
         {
           "command": "sweetShelf.addToFavorites",
-          "when": "view == sweetShelf.mainView && (viewItem == recentEntry.file || viewItem == recentEntry.file.aliased || viewItem == recentEntry.folder || viewItem == recentEntry.folder.aliased)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == recentEntry.file || viewItem == recentEntry.file.aliased || viewItem == recentEntry.folder || viewItem == recentEntry.folder.aliased)",
           "group": "4_favorite"
         },
         {
           "command": "sweetShelf.removeFromFavorites",
-          "when": "view == sweetShelf.mainView && (viewItem == recentEntry.file.favorited || viewItem == recentEntry.file.aliased.favorited || viewItem == recentEntry.folder.favorited || viewItem == recentEntry.folder.aliased.favorited)",
+          "when": "view =~ /^sweetShelf\\./ && (viewItem == recentEntry.file.favorited || viewItem == recentEntry.file.aliased.favorited || viewItem == recentEntry.folder.favorited || viewItem == recentEntry.folder.aliased.favorited)",
           "group": "4_favorite"
         },
         {
           "command": "sweetShelf.removeFromRecent",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\./",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\./",
           "group": "5_recent"
         },
         {
           "command": "sweetShelf.enterFocus",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.folder/",
           "group": "7_focus"
         },
         {
           "command": "sweetShelf.removeFile",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.file/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.file/",
           "group": "9_remove"
         },
         {
           "command": "sweetShelf.removeFolder",
-          "when": "view == sweetShelf.mainView && viewItem =~ /^recentEntry\\.folder/",
+          "when": "view =~ /^sweetShelf\\./ && viewItem =~ /^recentEntry\\.folder/",
           "group": "9_remove"
         },
 
         {
           "command": "sweetShelf.openFile",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.openFileToSide",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
           "group": "1_open@2"
         },
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
           "group": "2_locate@2"
         },
         {
           "command": "sweetShelf.addFolderEntryToShelf",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.file",
-          "group": "8_pin"
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
+          "group": "8_pin@1"
+        },
+        {
+          "command": "sweetShelf.addFolderEntryToFavorites",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.file",
+          "group": "8_pin@2"
         },
 
         {
           "command": "sweetShelf.openFolderInNewWindow",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
           "group": "1_open@1"
         },
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openTerminalHere",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
           "group": "2_locate@2"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
           "group": "2_locate@3"
         },
         {
           "command": "sweetShelf.addFolderEntryToShelf",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.directory",
-          "group": "8_pin"
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
+          "group": "8_pin@1"
+        },
+        {
+          "command": "sweetShelf.addFolderEntryToFavorites",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.directory",
+          "group": "8_pin@2"
         },
 
         {
           "command": "sweetShelf.revealInFinder",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.symlink && isMac",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.symlink && isMac",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.revealInExplorer",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.symlink && isWindows",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.symlink && isWindows",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.openContainingFolder",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.symlink && isLinux",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.symlink && isLinux",
           "group": "2_locate@1"
         },
         {
           "command": "sweetShelf.copyPath",
-          "when": "view == sweetShelf.mainView && viewItem == folderEntry.symlink",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == folderEntry.symlink",
           "group": "2_locate@2"
         }
       ]

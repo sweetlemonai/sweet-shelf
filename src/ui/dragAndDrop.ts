@@ -1,46 +1,59 @@
 import * as vscode from "vscode";
 
 import {
-  ALL_SECTION_IDS,
   AlreadyOnShelfError,
-  type SectionId,
   type ShelfNode,
 } from "../shelf/types";
 import type { ShelfStore } from "../shelf/store";
 import { logError, logWarn } from "../util/logger";
 
-/** MIME type for in-tree drags of shelf items (categories, files, folders). */
+/** MIME type for in-tree drags of shelf items (categories, files, folders, entries). */
 export const SHELF_DRAG_MIME = "application/vnd.code.tree.sweetShelf";
 /** MIME type VS Code uses when the OS drags files into the editor. */
 export const URI_LIST_MIME = "text/uri-list";
 
+/** Which view a controller instance is bound to. Determines drop semantics. */
+export type ViewKind = "library" | "favorites" | "recent";
+
 /** Discriminated union packed into the internal drag payload. */
-type DragItem =
-  | { kind: "category" | "file" | "folder" | "favoritesEntry"; id: string }
-  | { kind: "section"; id: SectionId };
+type DragItem = {
+  kind: "category" | "file" | "folder" | "favoritesEntry";
+  id: string;
+};
 
 /**
- * Drag-and-drop controller for the Sweet Shelf tree.
+ * Drag-and-drop controller. One class, one instance per view.
  *
- * Source kinds:
- *   - shelf items (category/file/folder): packed into the internal
- *     `SHELF_DRAG_MIME` for moves between categories
- *   - inline-browsed folderEntry items: emitted as `text/uri-list` so
- *     the existing OS-drop branch handles them as "add to category"
+ * Drag is uniform across views: any draggable shelf node serializes
+ * to the internal MIME with its kind + id. Inline-browsed entries
+ * (folderEntry) emit `text/uri-list` so the existing OS-drop branch
+ * can treat them as "add this URI to wherever you dropped it."
  *
- * Drop semantics:
+ * Drop semantics depend on the *target* view, which is what
+ * `viewKind` captures. VS Code routes a drop to the controller of
+ * the view it landed on, so per-view routing is automatic.
+ *
+ * Library view drops:
  *   - Category onto category   → nest as last child
- *   - Category onto Library    → move to Library root
- *   - Category onto Favorites/Recent → rejected
- *   - File/folder onto category → move there (last position)
- *   - File/folder onto section/file/folder → silently rejected
- *   - URI-list onto category → add each (skipping duplicates)
- *   - URI-list onto section → friendly toast
- *   - URI-list onto file/folder/folderEntry → silently rejected
- *   - Cycles → silently no-op
+ *   - Category onto root area  → drop targets a category if present;
+ *                                otherwise no-op (Library root is no
+ *                                longer a drop target — that was the
+ *                                old `section` model)
+ *   - File/folder onto category → move to that category
+ *   - File/folder onto root    → no-op
+ *   - URI-list onto category    → add as file/folder
+ *   - URI-list onto file/folder/entry → silent no-op
+ *   - URI-list onto root        → friendly toast (drop on a category)
  *
- * Between-node insertion is not supported; users reorder shelf items
- * via Move Up / Move Down commands. (Decision recorded in Task 2.)
+ * Favorites view drops:
+ *   - favoritesEntry onto favoritesEntry → reorder via moveFavoriteTo
+ *   - file/folder dragged from Library  → favorite that ref
+ *   - everything else → silent no-op
+ *
+ * Recent view: rejects all drops. Recent is auto-managed.
+ *
+ * Between-node insertion is not supported; users reorder favorites via
+ * Move Up / Move Down and category siblings via the same.
  */
 export class SweetShelfDragAndDropController
   implements vscode.TreeDragAndDropController<ShelfNode>
@@ -48,7 +61,10 @@ export class SweetShelfDragAndDropController
   readonly dragMimeTypes = [SHELF_DRAG_MIME, URI_LIST_MIME];
   readonly dropMimeTypes = [SHELF_DRAG_MIME, URI_LIST_MIME];
 
-  constructor(private readonly store: ShelfStore) {}
+  constructor(
+    private readonly viewKind: ViewKind,
+    private readonly store: ShelfStore,
+  ) {}
 
   handleDrag(
     source: readonly ShelfNode[],
@@ -71,22 +87,19 @@ export class SweetShelfDragAndDropController
         case "favoritesEntry":
           shelfPayload.push({ kind: "favoritesEntry", id: node.ref.id });
           break;
-        case "section":
-          shelfPayload.push({ kind: "section", id: node.id });
-          break;
         case "folderEntry":
           // Inline-browsed entries become URI-list payloads. The
-          // existing OS-drop branch handles "add to category"
-          // semantics, including stat-based file-vs-folder dispatch
-          // and duplicate detection.
+          // OS-drop branch handles "add to category" semantics,
+          // including stat-based file-vs-folder dispatch and
+          // duplicate detection.
           uris.push(node.uri.toString());
           break;
         case "recentEntry":
-        case "empty":
         case "folderEntryError":
         case "folderEntryOverflow":
         case "focusHeader":
-          // Recent is auto-managed; the rest aren't draggable.
+          // Recent rows aren't user-reorderable; the rest aren't
+          // draggable.
           break;
         default:
           assertNever(node);
@@ -111,6 +124,10 @@ export class SweetShelfDragAndDropController
     target: ShelfNode | undefined,
     dataTransfer: vscode.DataTransfer,
   ): Promise<void> {
+    if (this.viewKind === "recent") {
+      // Recent accepts no drops.
+      return;
+    }
     try {
       const internal = dataTransfer.get(SHELF_DRAG_MIME);
       if (internal) {
@@ -135,7 +152,22 @@ export class SweetShelfDragAndDropController
     target: ShelfNode | undefined,
     items: readonly DragItem[],
   ): void {
+    if (this.viewKind === "library") {
+      this.handleLibraryInternalDrop(target, items);
+    } else if (this.viewKind === "favorites") {
+      this.handleFavoritesInternalDrop(target, items);
+    }
+  }
+
+  private handleLibraryInternalDrop(
+    target: ShelfNode | undefined,
+    items: readonly DragItem[],
+  ): void {
     if (!target) {
+      // Library root no longer exists as a drop target now that
+      // sections are gone. To move a category to the root, drag it
+      // out of its parent — VS Code's tree expansion plus drop-onto-
+      // category semantics covers that without root drops.
       return;
     }
     for (const item of items) {
@@ -145,7 +177,11 @@ export class SweetShelfDragAndDropController
           if (!dest) {
             return;
           }
-          this.store.moveCategory(item.id, dest.parentId, Number.MAX_SAFE_INTEGER);
+          this.store.moveCategory(
+            item.id,
+            dest.parentId,
+            Number.MAX_SAFE_INTEGER,
+          );
           break;
         }
         case "file":
@@ -155,71 +191,67 @@ export class SweetShelfDragAndDropController
             return;
           }
           if (item.kind === "file") {
-            this.store.moveFile(item.id, dest.parentCategoryId, Number.MAX_SAFE_INTEGER);
+            this.store.moveFile(
+              item.id,
+              dest.parentCategoryId,
+              Number.MAX_SAFE_INTEGER,
+            );
           } else {
-            this.store.moveFolder(item.id, dest.parentCategoryId, Number.MAX_SAFE_INTEGER);
+            this.store.moveFolder(
+              item.id,
+              dest.parentCategoryId,
+              Number.MAX_SAFE_INTEGER,
+            );
           }
           break;
         }
-        case "favoritesEntry": {
-          // Reorder within Favorites only. Drop on another favorite
-          // ⇒ insert before; drop on the Favorites section ⇒ append.
-          // Anything else is silently rejected.
-          if (target.kind === "favoritesEntry") {
-            const targetIdx = this.store.favoritesOrder.indexOf(target.ref.id);
-            if (targetIdx >= 0) {
-              this.store.moveFavoriteTo(item.id, targetIdx);
-            }
-          } else if (target.kind === "section" && target.id === "favorites") {
-            this.store.moveFavoriteTo(item.id, Number.MAX_SAFE_INTEGER);
-          }
+        case "favoritesEntry":
+          // Dragging a favorites entry into Library has no clear
+          // intent — the underlying ref is already in Library.
+          // Reject silently.
           break;
-        }
-        case "section": {
-          // Section drag is meaningless in Focus Mode — sections
-          // aren't visible. Defensive against programmatic invocations
-          // even though the UI can't trigger one.
-          if (this.store.isFocused()) {
-            break;
-          }
-          if (target.kind === "section") {
-            this.reorderSections(item.id, target.id);
-          }
-          break;
-        }
         default:
-          assertNever(item);
+          assertNever(item.kind);
       }
     }
   }
 
-  /**
-   * Apply "drop A onto B = A appears immediately before B" semantics
-   * to the section order array. With three sections this rule is the
-   * least surprising for adjacent moves and matches the brief's only
-   * concrete example ("drag Favorites above Library").
-   */
-  private reorderSections(sourceId: SectionId, targetId: SectionId): void {
-    if (sourceId === targetId) {
-      return;
+  private handleFavoritesInternalDrop(
+    target: ShelfNode | undefined,
+    items: readonly DragItem[],
+  ): void {
+    for (const item of items) {
+      switch (item.kind) {
+        case "favoritesEntry": {
+          // Reorder within Favorites. Drop on another favorite =
+          // insert before; drop on the view's empty area
+          // (target undefined) = append.
+          if (target && target.kind === "favoritesEntry") {
+            const targetIdx = this.store.favoritesOrder.indexOf(target.ref.id);
+            if (targetIdx >= 0) {
+              this.store.moveFavoriteTo(item.id, targetIdx);
+            }
+          } else {
+            this.store.moveFavoriteTo(item.id, Number.MAX_SAFE_INTEGER);
+          }
+          break;
+        }
+        case "file": {
+          // Dragging a Library file into Favorites favorites it.
+          this.store.favoriteFile(item.id);
+          break;
+        }
+        case "folder": {
+          this.store.favoriteFolder(item.id);
+          break;
+        }
+        case "category":
+          // Categories aren't favoritable.
+          break;
+        default:
+          assertNever(item.kind);
+      }
     }
-    const order = [...this.store.sectionOrder];
-    const sourceIdx = order.indexOf(sourceId);
-    const targetIdx = order.indexOf(targetId);
-    if (sourceIdx === -1 || targetIdx === -1) {
-      return;
-    }
-    order.splice(sourceIdx, 1);
-    const adjusted = sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
-    order.splice(adjusted, 0, sourceId);
-    // Sanity: only commit a permutation of the canonical set.
-    if (
-      order.length !== ALL_SECTION_IDS.length ||
-      !ALL_SECTION_IDS.every((id) => order.includes(id))
-    ) {
-      return;
-    }
-    this.store.setSectionOrder(order);
   }
 
   /* ────────────────── OS / URI-list drop ────────────────── */
@@ -228,13 +260,18 @@ export class SweetShelfDragAndDropController
     target: ShelfNode | undefined,
     raw: string,
   ): Promise<void> {
-    const uris = parseUriList(raw);
-    if (uris.length === 0 || !target) {
+    if (this.viewKind !== "library") {
+      // Favorites doesn't accept OS drops — there's no category
+      // to add to. Silent reject.
       return;
     }
-    if (target.kind === "section" || target.kind === "empty") {
+    const uris = parseUriList(raw);
+    if (uris.length === 0) {
+      return;
+    }
+    if (!target) {
       void vscode.window.showInformationMessage(
-        "Drop files into a category to add them to your shelf.",
+        "Drop files onto a category to add them to your shelf.",
       );
       return;
     }
@@ -296,7 +333,7 @@ export class SweetShelfDragAndDropController
 /* ────────────────── Destination resolution ────────────────── */
 
 interface CategoryDestination {
-  /** `null` means Library root. */
+  /** `null` means top-level (Library root). */
   parentId: string | null;
 }
 
@@ -304,12 +341,15 @@ function resolveCategoryDestination(
   target: ShelfNode,
 ): CategoryDestination | null {
   switch (target.kind) {
-    case "section":
-      return target.id === "library" ? { parentId: null } : null;
-    case "empty":
-      return target.parentSectionId === "library" ? { parentId: null } : null;
     case "category":
       return { parentId: target.category.id };
+    case "focusHeader":
+      // Drop a category onto the focus header → put it inside the
+      // focused item if that's a category. (If focused on a folder,
+      // categories can't go inside; reject.)
+      return target.itemKind === "category"
+        ? { parentId: target.itemId }
+        : null;
     case "file":
     case "folder":
     case "favoritesEntry":
@@ -317,7 +357,6 @@ function resolveCategoryDestination(
     case "folderEntry":
     case "folderEntryError":
     case "folderEntryOverflow":
-    case "focusHeader":
       return null;
     default:
       return assertNever(target);
@@ -331,6 +370,9 @@ interface RefDestination {
 function resolveRefDestination(target: ShelfNode): RefDestination | null {
   if (target.kind === "category") {
     return { parentCategoryId: target.category.id };
+  }
+  if (target.kind === "focusHeader" && target.itemKind === "category") {
+    return { parentCategoryId: target.itemId };
   }
   return null;
 }
@@ -360,11 +402,6 @@ function decodeInternalPayload(raw: string): DragItem[] {
           case "folder":
           case "favoritesEntry":
             return [{ kind: obj.kind, id: obj.id }];
-          case "section":
-            if ((ALL_SECTION_IDS as readonly string[]).includes(obj.id)) {
-              return [{ kind: "section", id: obj.id as SectionId }];
-            }
-            return [];
           default:
             return [];
         }

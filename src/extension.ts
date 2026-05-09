@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 
 import { BrokenLinkCache } from "./shelf/brokenLinks";
+import { FavoritesTreeProvider } from "./ui/favoritesTreeProvider";
+import { LibraryTreeProvider } from "./ui/libraryTreeProvider";
+import { RecentTreeProvider } from "./ui/recentTreeProvider";
 import { ShelfStore, type LoadOutcome } from "./shelf/store";
-import { SweetShelfTreeProvider } from "./shelf/treeProvider";
 import { SweetShelfDecorationProvider } from "./ui/decorations";
 import { SweetShelfDragAndDropController } from "./ui/dragAndDrop";
 import { initLogger, log, logWarn } from "./util/logger";
@@ -11,11 +13,20 @@ import type { ShelfNode } from "./shelf/types";
 
 let storeRef: ShelfStore | undefined;
 
+const FAVORITES_EMPTY_MESSAGE =
+  "No favorites yet. Right-click any file or folder and choose Add to Favorites.";
+const RECENT_EMPTY_MESSAGE =
+  "Nothing recent. Files you open from your shelf will appear here.";
+const LIBRARY_EMPTY_MESSAGE =
+  "No categories yet. Click + above to create one.";
+const LIBRARY_EMPTY_FOCUSED_CATEGORY_MESSAGE =
+  "This category is empty. Click 'Show All' to see your full shelf.";
+
 /**
- * Extension entrypoint. Builds the store, loads persisted state, wires up
- * the tree view (with drag-and-drop), and registers every command. Heavy
- * work is intentionally kept out of activation — we only run when the
- * sidebar view is opened.
+ * Extension entrypoint. Builds the store, loads persisted state, wires
+ * up three tree views (Library / Favorites / Recent), and registers
+ * every command. Heavy work is kept out of activation — we only run
+ * when the sidebar is opened.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const channel = vscode.window.createOutputChannel("Sweet Shelf");
@@ -27,10 +38,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   storeRef = store;
   context.subscriptions.push(store);
 
-  // The broken-link cache backs Task 7's broken decoration + the
-  // ⚠ tree-row treatment. Construct early and inject into the store
-  // so add/rename/locate flows can mark known-good or invalidate
-  // entries without re-statting on every render.
+  // The broken-link cache backs the broken-decoration + ⚠ row
+  // treatment. Construct early and inject so add/rename/locate flows
+  // can mark known-good or invalidate entries without re-statting.
   const brokenLinks = new BrokenLinkCache();
   context.subscriptions.push(brokenLinks);
   store.setBrokenLinkCache(brokenLinks);
@@ -41,7 +51,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Activation-time orphan check: if shelf.json says we're focused on
   // something that no longer exists (hand-edited file, weird state),
   // exit silently with a log entry — toasting on launch is intrusive.
-  // The tree provider's defensive path covers mid-session orphans.
+  // The Library provider's defensive path covers mid-session orphans.
   if (store.isFocused() && !store.getFocusedItem()) {
     logWarn(
       "Activation: focused item couldn't be found; exited focus silently.",
@@ -49,11 +59,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     store.exitFocus();
   }
 
-  // Sync the `sweetShelf.focused` context key with store state. The
-  // first call runs *before* the tree provider registers so the
-  // initial getChildren already sees the right mode (no flicker
-  // between normal and focused on activation). Subsequent store
-  // changes re-sync via the subscription.
+  // Sync the `sweetShelf.focused` context key. The first call runs
+  // *before* views register so the initial render already sees the
+  // right mode (Favorites/Recent hide via `when` clauses, no flicker).
   const syncFocusContext = (): void => {
     void vscode.commands.executeCommand(
       "setContext",
@@ -64,20 +72,99 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   syncFocusContext();
   context.subscriptions.push(store.onDidChange(syncFocusContext));
 
-  const provider = new SweetShelfTreeProvider(store, brokenLinks);
-  context.subscriptions.push(provider);
+  const libraryProvider = new LibraryTreeProvider(store, brokenLinks);
+  const favoritesProvider = new FavoritesTreeProvider(store, brokenLinks);
+  const recentProvider = new RecentTreeProvider(store, brokenLinks);
+  context.subscriptions.push(libraryProvider, favoritesProvider, recentProvider);
 
-  const dndController = new SweetShelfDragAndDropController(store);
-  const treeView = vscode.window.createTreeView<ShelfNode>(
-    "sweetShelf.mainView",
+  const libraryView = vscode.window.createTreeView<ShelfNode>(
+    "sweetShelf.libraryView",
     {
-      treeDataProvider: provider,
+      treeDataProvider: libraryProvider,
       showCollapseAll: true,
       canSelectMany: false,
-      dragAndDropController: dndController,
+      dragAndDropController: new SweetShelfDragAndDropController(
+        "library",
+        store,
+      ),
     },
   );
-  context.subscriptions.push(treeView);
+  const favoritesView = vscode.window.createTreeView<ShelfNode>(
+    "sweetShelf.favoritesView",
+    {
+      treeDataProvider: favoritesProvider,
+      showCollapseAll: false,
+      canSelectMany: false,
+      dragAndDropController: new SweetShelfDragAndDropController(
+        "favorites",
+        store,
+      ),
+    },
+  );
+  const recentView = vscode.window.createTreeView<ShelfNode>(
+    "sweetShelf.recentView",
+    {
+      treeDataProvider: recentProvider,
+      showCollapseAll: false,
+      canSelectMany: false,
+      dragAndDropController: new SweetShelfDragAndDropController(
+        "recent",
+        store,
+      ),
+    },
+  );
+  context.subscriptions.push(libraryView, favoritesView, recentView);
+
+  // Library view title: "Focus: <name>" while focused, "Library"
+  // otherwise. Refreshed on every store change so it tracks the
+  // focused item's display name (alias-aware).
+  const syncLibraryTitle = (): void => {
+    if (store.isFocused()) {
+      const focused = store.getFocusedItem();
+      if (focused) {
+        const name =
+          focused.kind === "category"
+            ? focused.category.label
+            : focused.folder.alias ?? focused.folder.label;
+        libraryView.title = `Focus: ${name}`;
+        return;
+      }
+    }
+    libraryView.title = "Library";
+  };
+  syncLibraryTitle();
+  context.subscriptions.push(store.onDidChange(syncLibraryTitle));
+
+  // Empty-state messages via `TreeView.message` (the built-in banner
+  // above an empty tree). Refreshed on every store change.
+  const syncMessages = (): void => {
+    if (store.isFocused()) {
+      // Library in focus mode: when the focused category has no
+      // children, show the friendly empty-category message above the
+      // focus header.
+      const focused = store.getFocusedItem();
+      if (
+        focused &&
+        focused.kind === "category" &&
+        focused.category.children.length === 0
+      ) {
+        libraryView.message = LIBRARY_EMPTY_FOCUSED_CATEGORY_MESSAGE;
+      } else {
+        libraryView.message = "";
+      }
+    } else {
+      libraryView.message =
+        store.library.length === 0 ? LIBRARY_EMPTY_MESSAGE : "";
+    }
+    favoritesView.message = favoritesProvider.isEmpty()
+      ? FAVORITES_EMPTY_MESSAGE
+      : "";
+    recentView.message = recentProvider.isEmpty()
+      ? RECENT_EMPTY_MESSAGE
+      : "";
+  };
+  syncMessages();
+  context.subscriptions.push(store.onDidChange(syncMessages));
 
   const decorationProvider = new SweetShelfDecorationProvider(
     store,
@@ -88,7 +175,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.registerFileDecorationProvider(decorationProvider),
   );
 
-  registerCommands(context, store, treeView, brokenLinks, provider);
+  registerCommands(context, store, libraryView, brokenLinks, libraryProvider);
   log("Sweet Shelf ready.");
 }
 

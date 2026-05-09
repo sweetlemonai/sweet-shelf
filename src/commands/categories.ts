@@ -1,9 +1,6 @@
 import * as vscode from "vscode";
 
-import {
-  buildCategoryNode,
-  buildSectionNode,
-} from "../shelf/treeProvider";
+import { buildCategoryNode } from "../ui/treeItemBuilders";
 import {
   countDescendantsByKind,
   totalDescendants,
@@ -178,17 +175,6 @@ async function revealCategory(
     await treeView.reveal(node, { select: true, focus: false, expand: true });
   } catch (err) {
     logError("revealing new category", err);
-    if (parentId === null) {
-      try {
-        await treeView.reveal(buildSectionNode("library"), {
-          select: false,
-          focus: false,
-          expand: true,
-        });
-      } catch (err2) {
-        logError("revealing library section", err2);
-      }
-    }
   }
 }
 

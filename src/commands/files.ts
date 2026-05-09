@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { buildFileNode } from "../shelf/treeProvider";
+import { buildFileNode } from "../ui/treeItemBuilders";
 import { logError } from "../util/logger";
 import { pickCategoryId } from "../ui/quickPicks";
 import {

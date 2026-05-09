@@ -39,7 +39,6 @@ export function buildExport(
   }
   return {
     version: config.version,
-    sectionOrder: [...config.sectionOrder],
     favoritesOrder: [...config.favoritesOrder],
     focusedItemId: config.focusedItemId,
     library: config.library.map((c) => scrubCategory(c, exportTimestamp)),

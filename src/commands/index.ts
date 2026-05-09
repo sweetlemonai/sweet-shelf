@@ -18,7 +18,7 @@ import { registerSharedCommands } from "./shared";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { ShelfNode } from "../shelf/types";
 import type { ShelfStore } from "../shelf/store";
-import type { SweetShelfTreeProvider } from "../shelf/treeProvider";
+import type { LibraryTreeProvider } from "../ui/libraryTreeProvider";
 
 /** Wire every command Sweet Shelf contributes. Called once from `activate`. */
 export function registerCommands(
@@ -26,7 +26,7 @@ export function registerCommands(
   store: ShelfStore,
   treeView: vscode.TreeView<ShelfNode>,
   brokenLinks: BrokenLinkCache,
-  provider: SweetShelfTreeProvider,
+  provider: LibraryTreeProvider,
 ): void {
   registerCategoryCommands(context, store, treeView);
   registerFileCommands(context, store, treeView);

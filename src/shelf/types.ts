@@ -1,37 +1,21 @@
 /**
  * Core types for Sweet Shelf.
  *
- * `ShelfNode` is the discriminated union the tree provider walks. New
+ * `ShelfNode` is the discriminated union the tree providers walk. New
  * variants land here as later tasks add features. Always switch on
  * `node.kind` so adding a variant surfaces as a missing case at compile
  * time rather than silently falling through.
  */
 
-/** Identifier for a top-level section in the sidebar. */
-export type SectionId = "library" | "favorites" | "recent";
-
-/** All section ids in their canonical default order. */
-export const ALL_SECTION_IDS: readonly SectionId[] = [
-  "library",
-  "favorites",
-  "recent",
-] as const;
-
-/** Human-readable labels for each section. */
-export const SECTION_LABELS: Readonly<Record<SectionId, string>> = {
-  library: "Library",
-  favorites: "Favorites",
-  recent: "Recent",
-};
+import type * as vscode from "vscode";
+import type { ColorLabel } from "./color";
+export type { ColorLabel };
 
 /** Maximum allowed length for a category label, enforced at input + load time. */
 export const MAX_CATEGORY_LABEL_LENGTH = 100;
 
 /** Hard cap on category nesting depth (sanity guard, not a UX limit). */
 export const MAX_CATEGORY_DEPTH = 20;
-
-import type { ColorLabel } from "./color";
-export type { ColorLabel };
 
 /**
  * A reference to a file on disk. Sweet Shelf never owns the file —
@@ -93,8 +77,8 @@ export type CategoryChild = Category | FileRef | FolderRef;
 /**
  * A user-named container for organizing items on the shelf. Categories
  * are the only kind that nests; files and folders are always leaves at
- * the data-model level (Task 4 adds inline rendering of folder contents
- * but those stay outside the persisted tree).
+ * the data-model level (Task 4 added inline rendering of folder
+ * contents but those stay outside the persisted tree).
  */
 export interface Category {
   id: string;
@@ -110,23 +94,21 @@ export interface Category {
 /**
  * A node in the Sweet Shelf tree.
  *
- * Files and folders always have a parent category — they cannot live at
- * a section root. `parentId` is required and is the category id.
+ * Three view-only inline-browse variants (`folderEntry`,
+ * `folderEntryError`, `folderEntryOverflow`) plus `focusHeader` are
+ * recomputed on every render and never persisted. The schema
+ * validator's "unknown child kind" error backstops accidental
+ * persistence.
  *
- * `folderEntry`, `folderEntryError`, and `folderEntryOverflow` are
- * purely view state for inline folder browsing (Task 4). They are
- * recomputed from disk on every expansion, never persisted, never
- * carry an ID, and never enter the store. The schema validator's
- * "unknown child kind" error backstops accidental persistence.
+ * Library, Favorites, and Recent are now separate VS Code views (Task
+ * 12), so there's no `section` variant — each view's tree is rooted
+ * at its content directly. Empty-state copy is rendered via
+ * `TreeView.message`, not as a fake leaf node.
  *
- * Provider code switches on `node.kind` so missing cases are flagged by
- * the compiler.
+ * Provider code switches on `node.kind` so missing cases are flagged
+ * by the compiler.
  */
-import type * as vscode from "vscode";
-
 export type ShelfNode =
-  | { kind: "section"; id: SectionId; label: string }
-  | { kind: "empty"; parentSectionId: SectionId; message: string }
   | {
       kind: "category";
       category: Category;
@@ -137,16 +119,16 @@ export type ShelfNode =
   | { kind: "folder"; folder: FolderRef; parentId: string }
   | {
       /**
-       * Surfaces a Library file or folder ref in the Favorites
-       * section. Never persisted — the Favorites section is a
-       * derived view ordered by `ShelfConfig.favoritesOrder`.
+       * Surfaces a Library file or folder ref in the Favorites view.
+       * Never persisted — Favorites is a derived view ordered by
+       * `ShelfConfig.favoritesOrder`.
        */
       kind: "favoritesEntry";
       ref: FileRef | FolderRef;
     }
   | {
       /**
-       * Surfaces a Library file or folder ref in the Recent section.
+       * Surfaces a Library file or folder ref in the Recent view.
        * Never persisted — Recent is computed by sorting refs that
        * have `lastOpenedAt` set, descending.
        */
@@ -181,10 +163,9 @@ export type ShelfNode =
     }
   | {
       /**
-       * The "Focus: <name>" header rendered at root in Focus Mode.
-       * Click exits focus. Never persisted — derived from
-       * `ShelfConfig.focusedItemId` and resolved against the current
-       * library state on every render.
+       * The "Focus: <name>" header rendered at root of the Library
+       * view in Focus Mode. Click exits focus. Derived from
+       * `ShelfConfig.focusedItemId` on every render.
        */
       kind: "focusHeader";
       label: string;
@@ -196,19 +177,14 @@ export type ShelfNode =
  * The persisted shape of the shelf. Bumped via `version` whenever the
  * schema changes incompatibly so future migrations can branch on it.
  *
- * Tasks 3 and 6 stayed at `version: 1`: each added optional fields
- * and one new array (`favoritesOrder` in Task 6), all additive — Task
- * 1 and 2 files remain valid.
- *
  * Favorites and Recent are derived views, not separate storage. The
  * `favorites` and `recent` arrays remain `never[]` to make accidental
- * persistence impossible. `favoritesOrder` carries only the user-
+ * persistence impossible. `favoritesOrder` carries the user-
  * controllable order of favorited refs (which themselves live in
  * `library`).
  */
 export interface ShelfConfig {
   version: 1;
-  sectionOrder: SectionId[];
   /**
    * IDs of favorited file/folder refs, in display order. Each ID
    * corresponds to a ref somewhere in `library` whose `favoritedAt`
@@ -217,10 +193,9 @@ export interface ShelfConfig {
   favoritesOrder: string[];
   /**
    * ID of the currently focused category or folder ref, or `null`
-   * for normal mode. When set, the sidebar transforms into Focus
-   * Mode: sections disappear, only the focused item's contents
-   * render, and a "Focus: <name>" header is shown at root. Files
-   * are not focusable. Persists across reloads.
+   * for normal mode. When set, the Library view shows a focus header
+   * + the focused subtree, and the Favorites and Recent views hide
+   * via `when` clauses on the `sweetShelf.focused` context key.
    */
   focusedItemId: string | null;
   library: Category[];
@@ -231,7 +206,6 @@ export interface ShelfConfig {
 /** The default shelf state used when no config exists or the file is invalid. */
 export const DEFAULT_SHELF_CONFIG: ShelfConfig = {
   version: 1,
-  sectionOrder: ["library", "favorites", "recent"],
   favoritesOrder: [],
   focusedItemId: null,
   library: [],
@@ -240,10 +214,11 @@ export const DEFAULT_SHELF_CONFIG: ShelfConfig = {
 };
 
 /**
- * Thrown by `ShelfStore.addFile`/`addFolder` when the path is already on
- * the shelf. Carries the existing reference and its parent category's
- * label so the caller (single add or OS-drop loop) can surface a
- * targeted toast without re-walking the tree.
+ * Thrown by `ShelfStore.addFile` / `addFolder` / `addAndFavoriteFile`
+ * / `addAndFavoriteFolder` when the path is already on the shelf.
+ * Carries the existing reference and its parent category's label so
+ * the caller (single add, OS-drop loop, "Add to Favorites" flow) can
+ * surface a targeted message without re-walking the tree.
  */
 export class AlreadyOnShelfError extends Error {
   readonly ref: FileRef | FolderRef;

@@ -1,7 +1,7 @@
 import * as nodePath from "node:path";
 import * as vscode from "vscode";
 
-import { buildFolderNode } from "../shelf/treeProvider";
+import { buildFolderNode } from "../ui/treeItemBuilders";
 import { logError } from "../util/logger";
 import { pickCategoryId } from "../ui/quickPicks";
 import {

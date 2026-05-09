@@ -8,9 +8,15 @@ Run this sequence before any release. Each step's expected outcome is in italics
 2. If upgrading, first uninstall any prior version and clear extension storage
 3. Open VS Code with no workspace folder
 
+## Cross-view sanity (1.1.0)
+
+A. Drag the Favorites view header above Library — *order persists across reloads (VS Code native)*
+B. Drag a Library file directly onto the Favorites view body — *the file gets favorited*
+C. Right-click on the Recent view header — *"Clear Recent" appears in the title bar*
+
 ## Core flow
 
-4. Click the Sweet Shelf icon in the Activity Bar — *sidebar opens with Library / Favorites / Recent*
+4. Click the Sweet Shelf icon in the Activity Bar — *sidebar opens with three separate views: Library, Favorites, Recent, each with its own collapsible header*
 5. Click **+** → New Category, name it `Books` — *category appears under Library*
 6. Right-click `Books` → New Subcategory → `Code Smarter` — *nested under Books*
 7. Right-click `Code Smarter` → Add File → pick any markdown file — *appears with file-type icon*
@@ -26,15 +32,15 @@ Run this sequence before any release. Each step's expected outcome is in italics
 
 ## Personalization
 
-14. Right-click a shelf file → Add to Favorites — *star decoration appears; file shows in Favorites section*
+14. Right-click a shelf file → Add to Favorites — *star decoration appears; file shows in the Favorites view*
 15. Right-click a category → Set Color → Blue — *folder icon tints blue*
 16. Right-click a shelf file → Set Color → Red — *file row tints red; editor tab gets red dot when opened*
 17. Right-click an aliased file → Clear Display Name — *label reverts to basename; disambiguator returns*
 
 ## Focus
 
-18. Right-click a category → Focus on this — *sidebar transforms; header reads "Focus: <name>" with a "Show All" hint*
-19. Click the focus header — *normal sidebar returns*
+18. Right-click a category → Focus on this — *Library view's title changes to "Focus: <name>"; the focus header appears at the top of Library; Favorites and Recent views disappear*
+19. Click the focus header — *Library returns to normal; Favorites and Recent reappear*
 20. Repeat with a folder — *focused folder expands inline*
 21. Right-click a folder in Favorites → Focus on this — *focuses cleanly from any section*
 

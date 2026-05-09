@@ -15,7 +15,7 @@ import { pathsEqual } from "../shelf/paths";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { ShelfNode } from "../shelf/types";
 import type { ShelfStore } from "../shelf/store";
-import type { SweetShelfTreeProvider } from "../shelf/treeProvider";
+import type { LibraryTreeProvider } from "../ui/libraryTreeProvider";
 
 /**
  * Search Quick Pick — the keyboard-driven navigation primitive.
@@ -42,7 +42,7 @@ export function registerSearchCommands(
   store: ShelfStore,
   treeView: vscode.TreeView<ShelfNode>,
   brokenLinks: BrokenLinkCache,
-  provider: SweetShelfTreeProvider,
+  provider: LibraryTreeProvider,
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("sweetShelf.search", () =>
@@ -57,7 +57,7 @@ async function openSearch(
   store: ShelfStore,
   treeView: vscode.TreeView<ShelfNode>,
   brokenLinks: BrokenLinkCache,
-  provider: SweetShelfTreeProvider,
+  provider: LibraryTreeProvider,
 ): Promise<void> {
   const showExtensions = vscode.workspace
     .getConfiguration("sweetShelf")
@@ -146,7 +146,7 @@ async function handleSelection(
   item: PickItem,
   store: ShelfStore,
   treeView: vscode.TreeView<ShelfNode>,
-  provider: SweetShelfTreeProvider,
+  provider: LibraryTreeProvider,
 ): Promise<void> {
   if ("isPlaceholder" in item) {
     return;
