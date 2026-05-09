@@ -24,6 +24,12 @@ export interface AppCardState {
   /** Webview-loadable URI string, or `undefined` when the asset is missing. */
   iconWebviewUri?: string;
   installed: boolean;
+  /**
+   * Lifecycle from the registry. `"published"` (default) → the card
+   * renders Install / Installed+Open. `"coming-soon"` → the card
+   * shows a muted pill and no action buttons.
+   */
+  status: "published" | "coming-soon";
 }
 
 /**
@@ -74,6 +80,7 @@ function buildAppCard(
     displayName: app.displayName,
     description: app.description,
     installed: vscode.extensions.getExtension(app.extensionId) !== undefined,
+    status: app.status ?? "published",
   };
   if (app.iconPath !== undefined) {
     const onDisk = vscode.Uri.joinPath(extensionUri, "media", app.iconPath);

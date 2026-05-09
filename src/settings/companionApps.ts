@@ -28,6 +28,15 @@ export interface CompanionApp {
   description: string;
   iconPath?: string;
   openCommand?: string;
+  /**
+   * Lifecycle of the companion. `"published"` (the default when
+   * omitted) means the marketplace listing is live and the panel
+   * renders Install / Installed+Open buttons. `"coming-soon"` hides
+   * the action buttons and shows a muted "Coming soon" pill — the
+   * card still advertises the app without offering a button that
+   * would 404 on click.
+   */
+  status?: "published" | "coming-soon";
 }
 
 export const COMPANION_APPS: readonly CompanionApp[] = [
@@ -37,6 +46,7 @@ export const COMPANION_APPS: readonly CompanionApp[] = [
     description: "Better preview and editing for markdown files.",
     iconPath: "companion-apps/sweet-markdown.png",
     openCommand: "sweetMarkdown.openPreview",
+    status: "coming-soon",
   },
   {
     // Published under the `purple-vision` publisher; surfaced here as
@@ -49,6 +59,7 @@ export const COMPANION_APPS: readonly CompanionApp[] = [
     description: "Frictionless syntax for stream-of-consciousness notes.",
     iconPath: "companion-apps/braindump.png",
     openCommand: "braindump.start",
+    status: "coming-soon",
   },
 ];
 

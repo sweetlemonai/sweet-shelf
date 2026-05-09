@@ -317,6 +317,14 @@ kbd {
   color: var(--vscode-charts-green);
 }
 
+.app-actions .coming-soon-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85em;
+  font-style: italic;
+  color: var(--vscode-descriptionForeground);
+}
+
 .more {
   margin-top: 1.5rem;
 }
@@ -396,7 +404,14 @@ const SETTINGS_SCRIPT = `
       const actions = document.createElement('div');
       actions.className = 'app-actions';
 
-      if (app.installed) {
+      if (app.status === 'coming-soon') {
+        // Listing isn't live yet — show a muted pill instead of an
+        // Install button that would 404 with a fallback.
+        const pill = document.createElement('span');
+        pill.className = 'coming-soon-pill';
+        pill.textContent = 'Coming soon';
+        actions.appendChild(pill);
+      } else if (app.installed) {
         const pill = document.createElement('span');
         pill.className = 'installed-pill';
         pill.textContent = '✓ Installed';
