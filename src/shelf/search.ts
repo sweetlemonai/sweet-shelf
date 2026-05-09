@@ -6,6 +6,7 @@ import {
   type ColorLabel,
 } from "./color";
 import { fileDisplayName, folderDisplayName } from "./labels";
+import { findCategory } from "./categories";
 import type { BrokenLinkCache } from "./brokenLinks";
 import type { Category, FileRef, FolderRef } from "./types";
 
@@ -61,18 +62,73 @@ export interface ParsedQuery {
  * Disambiguation is intentionally skipped: the breadcrumb in
  * `description` already distinguishes same-named items across
  * categories, and per-render disambiguation is wasted work in the
- * Quick Pick context (Task 8 carry-forward note 5).
+ * Quick Pick context.
+ *
+ * `rootCategoryId` scopes the walk to one subtree (used by Task 13's
+ * "Search in this category"). The scope category itself is included
+ * as the first item; its descendants follow. Returns an empty array
+ * if the id doesn't resolve.
  */
 export function buildSearchableItems(
   library: readonly Category[],
   brokenLinks: BrokenLinkCache,
   showExtensions: boolean,
+  rootCategoryId?: string,
 ): SearchableItem[] {
   const out: SearchableItem[] = [];
+  if (rootCategoryId !== undefined) {
+    const root = findCategory(library, rootCategoryId);
+    if (!root) {
+      return out;
+    }
+    // Walk the scope category as if it were a top-level category;
+    // its breadcrumb still anchors at "Library / …" so users get the
+    // same context they'd see in unscoped search.
+    const ancestors = collectAncestorLabels(library, rootCategoryId);
+    visitCategory(root, ancestors, out, brokenLinks, showExtensions);
+    return out;
+  }
   for (const top of library) {
     visitCategory(top, [], out, brokenLinks, showExtensions);
   }
   return out;
+}
+
+/**
+ * Collect the ancestor category labels above `categoryId` (excluding
+ * the category itself). Used to anchor scoped-search breadcrumbs at
+ * the same path the user would see in unscoped search — so a result
+ * inside `Books / Code Smarter` reads `Library / Books / Code Smarter`
+ * even when search was scoped to `Code Smarter`.
+ */
+function collectAncestorLabels(
+  library: readonly Category[],
+  categoryId: string,
+): string[] {
+  const path: string[] = [];
+  const found = findInForest(library, categoryId, []);
+  return found ?? path;
+}
+
+function findInForest(
+  forest: readonly Category[],
+  id: string,
+  ancestors: readonly string[],
+): string[] | null {
+  for (const cat of forest) {
+    if (cat.id === id) {
+      return [...ancestors];
+    }
+    const inner = findInForest(
+      cat.children.filter((c): c is Category => c.kind === "category"),
+      id,
+      [...ancestors, cat.label],
+    );
+    if (inner) {
+      return inner;
+    }
+  }
+  return null;
 }
 
 function visitCategory(

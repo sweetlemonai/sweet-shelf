@@ -69,9 +69,11 @@ code --install-extension sweet-lemon.sweet-shelf
 ## Getting started
 
 1. Click the **Sweet Shelf** icon in the Activity Bar (left edge of VS Code)
-2. Click the **+** button to create your first category — call it whatever fits how you think (`Books`, `Wikis`, `Clients`, `Daily notes`)
-3. Right-click your category → **Add File** or **Add Folder** to pin items from anywhere on your computer
-4. Click any folder to browse its contents inline; click any file to open it
+2. The Library view's title bar gives you three icons: **+** to add, **🔍** to search, **⚙** to open Sweet Shelf Settings
+3. Click **+** → New Category to create your first category — call it whatever fits how you think (`Books`, `Wikis`, `Clients`, `Daily notes`)
+4. Right-click your category → **Add File** or **Add Folder** to pin items from anywhere on your computer
+5. Click any folder to browse its contents inline; click any file to open it
+6. Click the **🔍** icon any time to fuzzy-find across your shelf; right-click a category and choose **Search in this category** to scope the search
 
 That's the whole loop. Build out categories as you go.
 

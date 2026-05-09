@@ -45,12 +45,31 @@ export function registerSearchCommands(
   provider: LibraryTreeProvider,
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand("sweetShelf.search", () =>
+    vscode.commands.registerCommand("sweetShelf.search", (scopeNodeId?: string) =>
       runCommand("Search Shelf", () =>
-        openSearch(store, treeView, brokenLinks, provider),
+        openSearch(store, treeView, brokenLinks, provider, scopeNodeId),
       ),
     ),
+    vscode.commands.registerCommand(
+      "sweetShelf.searchInCategory",
+      (node?: ShelfNode) =>
+        runCommand("Search in Category", () => searchInCategory(node)),
+    ),
   );
+}
+
+/**
+ * Right-click "Search in this category" entry. Pulls the id off the
+ * right-clicked node and dispatches to `sweetShelf.search` with it as
+ * the scope argument. Folder refs don't get this affordance (they
+ * have no shelf descendants to scope into); the menu `when` clause
+ * already gates on `viewItem == category`.
+ */
+async function searchInCategory(node: ShelfNode | undefined): Promise<void> {
+  if (!node || node.kind !== "category") {
+    throw new Error("This command needs to be run on a category.");
+  }
+  await vscode.commands.executeCommand("sweetShelf.search", node.category.id);
 }
 
 async function openSearch(
@@ -58,6 +77,7 @@ async function openSearch(
   treeView: vscode.TreeView<ShelfNode>,
   brokenLinks: BrokenLinkCache,
   provider: LibraryTreeProvider,
+  scopeNodeId: string | undefined,
 ): Promise<void> {
   const showExtensions = vscode.workspace
     .getConfiguration("sweetShelf")
@@ -66,15 +86,16 @@ async function openSearch(
     store.library,
     brokenLinks,
     showExtensions,
+    scopeNodeId,
   );
 
   if (allItems.length === 0) {
-    await showEmptyShelfQuickPick();
+    await showEmptyShelfQuickPick(scopeNodeId !== undefined);
     return;
   }
 
   const picker = vscode.window.createQuickPick<PickItem>();
-  picker.placeholder = "Search your shelf — try color:red or is:favorited";
+  picker.placeholder = scopedPlaceholder(scopeNodeId, store);
   picker.matchOnDescription = true;
   picker.matchOnDetail = false;
   picker.items = allItems;
@@ -128,7 +149,19 @@ async function openSearch(
   picker.show();
 }
 
-async function showEmptyShelfQuickPick(): Promise<void> {
+async function showEmptyShelfQuickPick(scoped: boolean): Promise<void> {
+  if (scoped) {
+    await vscode.window.showQuickPick(
+      [
+        {
+          label: "This category is empty.",
+          description: "Nothing to search in here yet.",
+        },
+      ],
+      { placeHolder: "Nothing to search yet" },
+    );
+    return;
+  }
   await vscode.window.showQuickPick(
     [
       {
@@ -136,10 +169,27 @@ async function showEmptyShelfQuickPick(): Promise<void> {
         description: "Add files, folders, or categories to start.",
       },
     ],
-    {
-      placeHolder: "Nothing to search yet",
-    },
+    { placeHolder: "Nothing to search yet" },
   );
+}
+
+/**
+ * Quick Pick placeholder copy. Unscoped search hints the filter
+ * syntax; scoped search names the category instead so the user
+ * remembers what context they're searching in.
+ */
+function scopedPlaceholder(
+  scopeNodeId: string | undefined,
+  store: ShelfStore,
+): string {
+  if (scopeNodeId === undefined) {
+    return "Search your shelf — try color:red or is:favorited";
+  }
+  const cat = store.findCategory(scopeNodeId);
+  if (!cat) {
+    return "Search your shelf — try color:red or is:favorited";
+  }
+  return `Searching in "${cat.label}"…`;
 }
 
 async function handleSelection(

@@ -2,6 +2,14 @@
 
 All notable changes to Sweet Shelf are documented here.
 
+## 1.2.0 — Search and Settings icons, companion apps
+
+- **Search icon** in the Library view title bar — keyboard search is now mouse-discoverable
+- **Settings icon** in the Library view title bar — opens a custom Sweet Shelf Settings panel
+- **Search in this category** right-click action on any category — opens the search Quick Pick scoped to that subtree
+- **Custom Settings panel** with a Preferences section (mirrors all six existing settings) and a Sweet Lemon Apps section listing companion extensions (Sweet Markdown, Braindump for now)
+- Settings written from the panel sync with VS Code's native Settings UI; both stay live while the panel is open
+
 ## 1.1.0 — Separate sidebar views
 
 - **Library, Favorites, and Recent are now three separate sidebar views**, each with its own collapsible header — same UX pattern as Outline and Timeline under Explorer

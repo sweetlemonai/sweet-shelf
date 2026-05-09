@@ -2,7 +2,7 @@
   "name": "sweet-shelf",
   "displayName": "Sweet Shelf",
   "description": "Organize the files, folders, notes, and ideas you keep coming back to — all in one VS Code sidebar.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "sweet-lemon",
   "license": "MIT",
   "homepage": "https://github.com/sweetlemonai/sweet-shelf#readme",
@@ -364,7 +364,19 @@
       {
         "command": "sweetShelf.search",
         "title": "Search Shelf",
+        "category": "Sweet Shelf",
+        "icon": "$(search)"
+      },
+      {
+        "command": "sweetShelf.searchInCategory",
+        "title": "Search in this category",
         "category": "Sweet Shelf"
+      },
+      {
+        "command": "sweetShelf.openSettings",
+        "title": "Sweet Shelf Settings",
+        "category": "Sweet Shelf",
+        "icon": "$(gear)"
       },
       {
         "command": "sweetShelf.exportShelf",
@@ -574,13 +586,27 @@
         {
           "command": "sweetShelf._brokenClick",
           "when": "false"
+        },
+        {
+          "command": "sweetShelf.searchInCategory",
+          "when": "false"
         }
       ],
       "view/title": [
         {
           "submenu": "sweetShelf.add",
           "when": "view == sweetShelf.libraryView",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "sweetShelf.search",
+          "when": "view == sweetShelf.libraryView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sweetShelf.openSettings",
+          "when": "view == sweetShelf.libraryView",
+          "group": "navigation@3"
         },
         {
           "command": "sweetShelf.clearRecent",
@@ -676,6 +702,11 @@
           "submenu": "sweetShelf.setColor",
           "when": "view =~ /^sweetShelf\\./ && viewItem == category",
           "group": "5_color"
+        },
+        {
+          "command": "sweetShelf.searchInCategory",
+          "when": "view =~ /^sweetShelf\\./ && viewItem == category",
+          "group": "6_search"
         },
         {
           "command": "sweetShelf.enterFocus",

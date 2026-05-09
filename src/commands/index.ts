@@ -14,6 +14,7 @@ import { registerFolderEntryCommands } from "./folderEntries";
 import { registerRecentCommands } from "./recent";
 import { registerRenameOnDiskCommands } from "./renameOnDisk";
 import { registerSearchCommands } from "./search";
+import { registerSettingsCommands } from "./settings";
 import { registerSharedCommands } from "./shared";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { ShelfNode } from "../shelf/types";
@@ -40,6 +41,7 @@ export function registerCommands(
   registerRenameOnDiskCommands(context, store);
   registerBrokenLinkCommands(context, store, brokenLinks);
   registerSearchCommands(context, store, treeView, brokenLinks, provider);
+  registerSettingsCommands(context);
   registerExportImportCommands(context, store, brokenLinks);
   registerSharedCommands(context);
   registerRevealConfigCommand(context, store);
