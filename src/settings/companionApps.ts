@@ -32,14 +32,19 @@ export interface CompanionApp {
 
 export const COMPANION_APPS: readonly CompanionApp[] = [
   {
-    extensionId: "sweetlemonai.sweet-markdown",
+    extensionId: "sweet-lemon.sweet-markdown",
     displayName: "Sweet Markdown",
     description: "Better preview and editing for markdown files.",
     iconPath: "companion-apps/sweet-markdown.png",
     openCommand: "sweetMarkdown.openPreview",
   },
   {
-    extensionId: "sweetlemonai.braindump",
+    // Published under the `purple-vision` publisher; surfaced here as
+    // a Sweet Lemon companion by editorial choice. The "More from
+    // Sweet Lemon" link points at the `sweet-lemon` publisher page,
+    // so Braindump won't appear there — that's fine; the card here
+    // is the discovery surface.
+    extensionId: "purple-vision.braindump",
     displayName: "Braindump",
     description: "Frictionless syntax for stream-of-consciousness notes.",
     iconPath: "companion-apps/braindump.png",
@@ -49,4 +54,4 @@ export const COMPANION_APPS: readonly CompanionApp[] = [
 
 /** Marketplace publisher page — opened from the "More from Sweet Lemon" link. */
 export const SWEET_LEMON_PUBLISHER_URL =
-  "https://marketplace.visualstudio.com/publishers/sweetlemonai";
+  "https://marketplace.visualstudio.com/publishers/sweet-lemon";
