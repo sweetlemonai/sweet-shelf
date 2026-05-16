@@ -21,9 +21,10 @@ import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { Category, ShelfNode } from "../shelf/types";
 import type { ShelfStore } from "../shelf/store";
 
-/** Settings keys whose value affects rendered labels — refresh on change. */
-const LABEL_AFFECTING_SETTINGS: readonly string[] = [
+/** Settings whose value affects what the tree renders — refresh on change. */
+const TREE_AFFECTING_SETTINGS: readonly string[] = [
   "sweetShelf.showFileExtensions",
+  "sweetShelf.showHiddenFiles",
 ];
 
 /**
@@ -67,7 +68,7 @@ export class LibraryTreeProvider
       this._onDidChangeTreeData.fire(undefined);
     });
     this.configSubscription = vscode.workspace.onDidChangeConfiguration((e) => {
-      if (LABEL_AFFECTING_SETTINGS.some((key) => e.affectsConfiguration(key))) {
+      if (TREE_AFFECTING_SETTINGS.some((key) => e.affectsConfiguration(key))) {
         this._onDidChangeTreeData.fire(undefined);
       }
     });

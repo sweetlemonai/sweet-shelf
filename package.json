@@ -2,7 +2,7 @@
   "name": "sweet-shelf",
   "displayName": "Sweet Shelf",
   "description": "Organize the files, folders, notes, and ideas you keep coming back to — all in one VS Code sidebar.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "sweet-lemon",
   "license": "MIT",
   "homepage": "https://github.com/sweetlemonai/sweet-shelf#readme",
