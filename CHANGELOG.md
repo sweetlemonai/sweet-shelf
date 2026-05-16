@@ -2,6 +2,10 @@
 
 All notable changes to Sweet Shelf are documented here.
 
+## 1.0.2 — Drop subtree color cascade
+
+- 1.0.1 tried to cascade a colored folder's tint onto every file and sub-folder beneath it. VS Code tree labels expose a single foreground color for the whole row, so any "section" indicator either left filenames unchanged at the cost of a large emoji square, or kept the marker small at the cost of tinting filenames too. Neither read well; the cascade is removed in 1.0.2. Colors now apply only to the category, file, or folder you set them on.
+
 ## 1.0.1 — Color fidelity, cross-window sync
 
 - **Sweet Shelf now ships its own color palette** so orange shows orange, purple shows purple, etc. Themes that reassign VS Code's `charts.*` tokens for chart aesthetics no longer scramble shelf colors.
