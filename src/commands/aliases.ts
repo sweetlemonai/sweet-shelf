@@ -1,3 +1,4 @@
+import * as nodePath from "node:path";
 import * as vscode from "vscode";
 
 import { logError } from "../util/logger";
@@ -68,96 +69,119 @@ async function renameFileDisplayName(
   store: ShelfStore,
   node: ShelfNode | undefined,
 ): Promise<void> {
-  const ref = unwrapFileRef(node);
-  if (!ref) {
+  const target = aliasTarget(node, "file");
+  if (!target) {
     throw new Error("This command needs to be run on a file.");
   }
-  const current = ref.alias ?? ref.label;
   const newName = await promptForDisplayName({
     title: RENAME_FILE_TITLE,
     prompt: RENAME_HINT,
-    value: current,
+    value: target.current,
   });
   if (!newName) {
     return;
   }
-  store.setFileAlias(ref.id, newName);
+  if (target.scope === "favorite") {
+    store.setFavoriteAlias(target.id, newName);
+  } else {
+    store.setFileAlias(target.id, newName);
+  }
 }
 
 function clearFileDisplayName(
   store: ShelfStore,
   node: ShelfNode | undefined,
 ): void {
-  const ref = unwrapFileRef(node);
-  if (!ref) {
+  const target = aliasTarget(node, "file");
+  if (!target) {
     throw new Error("This command needs to be run on a file.");
   }
-  store.clearFileAlias(ref.id);
+  if (target.scope === "favorite") {
+    store.clearFavoriteAlias(target.id);
+  } else {
+    store.clearFileAlias(target.id);
+  }
 }
 
 async function renameFolderDisplayName(
   store: ShelfStore,
   node: ShelfNode | undefined,
 ): Promise<void> {
-  const ref = unwrapFolderRef(node);
-  if (!ref) {
+  const target = aliasTarget(node, "folder");
+  if (!target) {
     throw new Error("This command needs to be run on a folder.");
   }
-  const current = ref.alias ?? ref.label;
   const newName = await promptForDisplayName({
     title: RENAME_FOLDER_TITLE,
     prompt: RENAME_HINT,
-    value: current,
+    value: target.current,
   });
   if (!newName) {
     return;
   }
-  store.setFolderAlias(ref.id, newName);
+  if (target.scope === "favorite") {
+    store.setFavoriteAlias(target.id, newName);
+  } else {
+    store.setFolderAlias(target.id, newName);
+  }
 }
 
 function clearFolderDisplayName(
   store: ShelfStore,
   node: ShelfNode | undefined,
 ): void {
-  const ref = unwrapFolderRef(node);
-  if (!ref) {
+  const target = aliasTarget(node, "folder");
+  if (!target) {
     throw new Error("This command needs to be run on a folder.");
   }
-  store.clearFolderAlias(ref.id);
+  if (target.scope === "favorite") {
+    store.clearFavoriteAlias(target.id);
+  } else {
+    store.clearFolderAlias(target.id);
+  }
 }
 
-function unwrapFileRef(
+interface AliasTarget {
+  scope: "library" | "favorite";
+  id: string;
+  current: string;
+}
+
+function aliasTarget(
   node: ShelfNode | undefined,
-): { id: string; alias?: string; label: string } | null {
+  expected: "file" | "folder",
+): AliasTarget | null {
   if (!node) {
     return null;
   }
-  if (node.kind === "file") {
-    return node.file;
+  if (expected === "file" && node.kind === "file") {
+    return {
+      scope: "library",
+      id: node.file.id,
+      current: node.file.alias ?? node.file.label,
+    };
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "file"
-  ) {
-    return node.ref;
+  if (expected === "folder" && node.kind === "folder") {
+    return {
+      scope: "library",
+      id: node.folder.id,
+      current: node.folder.alias ?? node.folder.label,
+    };
   }
-  return null;
-}
-
-function unwrapFolderRef(
-  node: ShelfNode | undefined,
-): { id: string; alias?: string; label: string } | null {
-  if (!node) {
-    return null;
+  if (node.kind === "favoritesEntry" && node.favorite.kind === expected) {
+    const fav = node.favorite;
+    return {
+      scope: "favorite",
+      id: fav.id,
+      current: fav.alias ?? nodePath.basename(fav.path),
+    };
   }
-  if (node.kind === "folder") {
-    return node.folder;
-  }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "folder"
-  ) {
-    return node.ref;
+  if (node.kind === "recentEntry" && node.ref.kind === expected) {
+    return {
+      scope: "library",
+      id: node.ref.id,
+      current: node.ref.alias ?? node.ref.label,
+    };
   }
   return null;
 }

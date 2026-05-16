@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { buildEntryTreeItem } from "./treeItemBuilders";
+import { buildRecentEntryTreeItem } from "./treeItemBuilders";
 import { buildRecentView, hasRecentEntries } from "../shelf/recent";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { ShelfNode } from "../shelf/types";
@@ -59,13 +59,12 @@ export class RecentTreeProvider
         `RecentTreeProvider received unexpected node kind: ${node.kind}`,
       );
     }
-    return buildEntryTreeItem(
+    return buildRecentEntryTreeItem(
       node.ref,
-      "recentEntry",
       this.store.library,
       this.showFileExtensions(),
-      /* includeFavoritedFlag */ true,
       this.brokenStateFor(node.ref.path),
+      this.store.isFavoritedPath(node.ref.path),
     );
   }
 

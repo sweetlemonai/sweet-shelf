@@ -122,10 +122,7 @@ function folderRefIdFromNode(node: ShelfNode | undefined): string | null {
   if (node.kind === "folder") {
     return node.folder.id;
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "folder"
-  ) {
+  if (node.kind === "recentEntry" && node.ref.kind === "folder") {
     return node.ref.id;
   }
   return null;
@@ -157,32 +154,72 @@ async function openFolderDefault(
   treeView: vscode.TreeView<ShelfNode>,
   node: ShelfNode | undefined,
 ): Promise<void> {
-  if (!node || node.kind !== "folder") {
+  if (!node) {
     throw new Error("This command needs a folder.");
   }
-  const folder = node.folder;
+  // Library `folder` and `recentEntry` (folder) flow through here.
+  // Favorites have their own dispatcher (`_openFavoriteDefault`) so
+  // they always reveal-and-expand regardless of the configured
+  // action — Favorites is a navigation surface.
+  const target = folderTarget(node);
   const action = vscode.workspace
     .getConfiguration("sweetShelf")
     .get<string>("defaultFolderClickAction", "browse");
 
   if (action === "openInNewWindow") {
-    await runOpenFolder(vscode.Uri.file(folder.path), true);
-    store.recordOpened(folder.id);
+    await runOpenFolder(target.uri, true);
+    if (target.recordOnId) {
+      store.recordOpened(target.recordOnId);
+    }
     return;
   }
   if (action === "openInCurrentWindow") {
-    await runOpenFolder(vscode.Uri.file(folder.path), false);
-    store.recordOpened(folder.id);
+    await runOpenFolder(target.uri, false);
+    if (target.recordOnId) {
+      store.recordOpened(target.recordOnId);
+    }
     return;
   }
-  // "browse" — expand inline. No recordOpened: browsing is lower
-  // signal than an explicit open, and Task 6's Recent will lean on
-  // explicit opens.
+  // "browse" — expand inline. For Library folder nodes we're already
+  // on the right tree node; for `recentEntry` rows we need to resolve
+  // back to the Library node so reveal can expand it there. No
+  // recordOpened: browsing is lower signal than an explicit open.
+  const libraryNode = libraryFolderNode(store, node);
+  if (!libraryNode) {
+    // Defensive fallback — open in current window so the click does
+    // *something* useful.
+    await runOpenFolder(target.uri, false);
+    if (target.recordOnId) {
+      store.recordOpened(target.recordOnId);
+    }
+    return;
+  }
   try {
-    await treeView.reveal(node, { expand: true });
+    await treeView.reveal(libraryNode, {
+      expand: true,
+      select: true,
+      focus: true,
+    });
   } catch (err) {
     logError("expanding folder ref", err);
   }
+}
+
+function libraryFolderNode(
+  store: ShelfStore,
+  node: ShelfNode,
+): ShelfNode | null {
+  if (node.kind === "folder") {
+    return node;
+  }
+  if (node.kind === "recentEntry" && node.ref.kind === "folder") {
+    const container = store.getRefParent(node.ref.id);
+    if (!container) {
+      return null;
+    }
+    return buildFolderNode(node.ref, container.parent.id);
+  }
+  return null;
 }
 
 interface FolderTarget {
@@ -203,14 +240,20 @@ function folderTarget(node: ShelfNode | undefined): FolderTarget {
       recordOnId: node.folder.id,
     };
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "folder"
-  ) {
+  if (node.kind === "recentEntry" && node.ref.kind === "folder") {
     return {
       uri: vscode.Uri.file(node.ref.path),
       label: node.ref.label,
       recordOnId: node.ref.id,
+    };
+  }
+  if (node.kind === "favoritesEntry" && node.favorite.kind === "folder") {
+    return {
+      uri: vscode.Uri.file(node.favorite.path),
+      label:
+        node.favorite.alias ??
+        (nodePath.basename(node.favorite.path) || node.favorite.path),
+      recordOnId: null,
     };
   }
   if (node.kind === "folderEntry" && node.isDirectory && !node.isSymlink) {

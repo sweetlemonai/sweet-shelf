@@ -56,9 +56,13 @@ function focusableIdFromNode(node: ShelfNode | undefined): string | null {
       return node.category.id;
     case "folder":
       return node.folder.id;
-    case "favoritesEntry":
     case "recentEntry":
       return node.ref.kind === "folder" ? node.ref.id : null;
+    case "favoritesEntry":
+      // Favorites are path-based and have no Library id to focus on.
+      // The right-click menu doesn't surface "Focus on this" on
+      // favorites for that reason.
+      return null;
     default:
       return null;
   }

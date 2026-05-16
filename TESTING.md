@@ -8,13 +8,13 @@ Run this sequence before any release. Each step's expected outcome is in italics
 2. If upgrading, first uninstall any prior version and clear extension storage
 3. Open VS Code with no workspace folder
 
-## Cross-view sanity (1.1.0)
+## Cross-view sanity
 
 A. Drag the Favorites view header above Library — *order persists across reloads (VS Code native)*
 B. Drag a Library file directly onto the Favorites view body — *the file gets favorited*
 C. Right-click on the Recent view header — *"Clear Recent" appears in the title bar*
 
-## 1.2.0 surface — Title-bar icons, scoped search, Settings panel
+## Title-bar icons, scoped search, Settings panel
 
 Run these in order before the rest of the smoke test. They populate the shelf with enough state for later sections to lean on.
 
@@ -92,10 +92,29 @@ D27. Uninstall the companion via VS Code's Extensions view while the panel is op
 
 ## Personalization
 
-14. Right-click a shelf file → Add to Favorites — *star decoration appears; file shows in the Favorites view*
-15. Right-click a category → Set Color → Blue — *folder icon tints blue*
-16. Right-click a shelf file → Set Color → Red — *file row tints red; editor tab gets red dot when opened*
-17. Right-click an aliased file → Clear Display Name — *label reverts to basename; disambiguator returns*
+14. Right-click a category → Set Color → Blue — *folder icon tints blue*
+15. Right-click a shelf file → Set Color → Red — *file row tints red; editor tab gets red dot when opened*
+16. Right-click an aliased file → Clear Display Name — *label reverts to basename; disambiguator returns*
+
+## Favorites
+
+F1. Right-click a Library file → Add to Favorites — *star badge decorates the Library row; the file appears in the Favorites view*
+F2. Right-click a Library folder → Add to Favorites — *star badge on the Library row; folder appears in Favorites*
+F3. Click a favorited file in the Favorites view — *opens in the active editor; workspace unchanged; appears in Recent*
+F4. Click a favorited folder in the Favorites view — *Library view scrolls to that folder, focuses it, and expands its inline-browse contents; no new VS Code window, no workspace switch*
+F5. Right-click a favorited file in Favorites — *menu shows Open / Open to Side, Reveal/Copy Path, Set Color, Rename / Clear Display Name (when aliased), Move Up / Move Down, Remove from Favorites, Remove from Sweet Shelf*
+F6. Right-click a favorited folder in Favorites — *menu shows Open in Current Window / Open in New Window, Reveal/Open Terminal/Copy Path, Set Color, Rename / Clear Display Name, Move Up / Move Down, Remove from Favorites, Remove from Sweet Shelf*
+F7. Move Up / Move Down on a favorited row — *order updates; persists across reload*
+F8. Drag-reorder within Favorites — *order updates*
+F9. Drag a Library file onto the Favorites view body — *the file gets favorited (star appears in Library; row appears in Favorites)*
+F10. Right-click a favorited Library row → Remove from Favorites — *star clears; row disappears from Favorites; the Library ref stays in its category*
+F11. Right-click a Library file currently in Favorites → Remove from Sweet Shelf — *file disappears from Library AND Favorites in one shot*
+F12. Right-click a Library folder currently in Favorites → Remove from Sweet Shelf — *same: folder gone from both views*
+F13. Right-click a category that contains favorited descendants → Remove from Sweet Shelf → confirm — *category removed; favorited descendants drop out of Favorites automatically*
+F14. With no favorites left, view the empty Favorites pane — *hint reads "No favorites yet. Right-click any file or folder in Library and choose Add to Favorites."*
+F15. Inline-browse a Library folder, right-click a sub-file or sub-folder — *menu shows Add to Category…; "Add to Favorites" is **not** in the menu*
+F16. Right-click any file in VS Code's built-in Explorer (outside Sweet Shelf's sidebar) — *no "Add to Favorites" entry; Sweet Shelf doesn't contribute to the Explorer right-click menu*
+F17. Right-click an editor tab — *no "Add to Favorites" entry; Sweet Shelf doesn't contribute to the editor tab right-click menu*
 
 ## Focus
 
@@ -112,7 +131,7 @@ D27. Uninstall the companion via VS Code's Extensions view while the panel is op
 
 ## Search
 
-(Title-bar icon and "Search in this category" are covered above in the 1.2.0 surface section. These steps cover unscoped query syntax.)
+(Title-bar icon and "Search in this category" are covered above. These steps cover unscoped query syntax.)
 
 25. `Cmd/Ctrl + Shift + P` → "Sweet Shelf: Search Shelf" — *Quick Pick opens with all items*
 26. Type a few characters — *fuzzy match across labels and breadcrumbs*

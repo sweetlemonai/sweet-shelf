@@ -64,6 +64,11 @@ export interface ParsedQuery {
  * categories, and per-render disambiguation is wasted work in the
  * Quick Pick context.
  *
+ * `isFavoritedPath` resolves the `is:favorited` filter by path —
+ * Library refs and favorites are independent storage in v1.0.0, so
+ * we can't read the flag off the ref itself. Callers pass the
+ * store's `isFavoritedPath` bound to the current state.
+ *
  * `rootCategoryId` scopes the walk to one subtree (used by Task 13's
  * "Search in this category"). The scope category itself is included
  * as the first item; its descendants follow. Returns an empty array
@@ -71,6 +76,7 @@ export interface ParsedQuery {
  */
 export function buildSearchableItems(
   library: readonly Category[],
+  isFavoritedPath: (path: string) => boolean,
   brokenLinks: BrokenLinkCache,
   showExtensions: boolean,
   rootCategoryId?: string,
@@ -81,15 +87,12 @@ export function buildSearchableItems(
     if (!root) {
       return out;
     }
-    // Walk the scope category as if it were a top-level category;
-    // its breadcrumb still anchors at "Library / …" so users get the
-    // same context they'd see in unscoped search.
     const ancestors = collectAncestorLabels(library, rootCategoryId);
-    visitCategory(root, ancestors, out, brokenLinks, showExtensions);
+    visitCategory(root, ancestors, out, isFavoritedPath, brokenLinks, showExtensions);
     return out;
   }
   for (const top of library) {
-    visitCategory(top, [], out, brokenLinks, showExtensions);
+    visitCategory(top, [], out, isFavoritedPath, brokenLinks, showExtensions);
   }
   return out;
 }
@@ -135,6 +138,7 @@ function visitCategory(
   category: Category,
   ancestors: readonly string[],
   out: SearchableItem[],
+  isFavoritedPath: (path: string) => boolean,
   brokenLinks: BrokenLinkCache,
   showExtensions: boolean,
 ): void {
@@ -158,9 +162,24 @@ function visitCategory(
 
   for (const child of category.children) {
     if (child.kind === "category") {
-      visitCategory(child, childAncestors, out, brokenLinks, showExtensions);
+      visitCategory(
+        child,
+        childAncestors,
+        out,
+        isFavoritedPath,
+        brokenLinks,
+        showExtensions,
+      );
     } else {
-      out.push(buildRefItem(child, containerBreadcrumb, brokenLinks, showExtensions));
+      out.push(
+        buildRefItem(
+          child,
+          containerBreadcrumb,
+          isFavoritedPath,
+          brokenLinks,
+          showExtensions,
+        ),
+      );
     }
   }
 }
@@ -168,6 +187,7 @@ function visitCategory(
 function buildRefItem(
   ref: FileRef | FolderRef,
   breadcrumb: string,
+  isFavoritedPath: (path: string) => boolean,
   brokenLinks: BrokenLinkCache,
   showExtensions: boolean,
 ): SearchableItem {
@@ -189,7 +209,7 @@ function buildRefItem(
     iconPath: vscode.Uri.file(ref.path),
     nodeKind: ref.kind,
     ref,
-    isFavorited: ref.favoritedAt !== undefined,
+    isFavorited: isFavoritedPath(ref.path),
     isBroken: cached === true,
   };
   if (ref.colorLabel !== undefined) {
@@ -229,7 +249,7 @@ export function parseQuery(value: string): ParsedQuery {
 
 /**
  * Apply accumulated filters to the pre-built item set. Categories are
- * never `is:favorited` or `is:broken` (no `favoritedAt`, no `path` to
+ * never `is:favorited` or `is:broken` (categories aren't favoritable; no `path` to
  * stat) — the predicates exclude them naturally.
  */
 export function applyFilters(

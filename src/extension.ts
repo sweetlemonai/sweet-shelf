@@ -14,7 +14,7 @@ import type { ShelfNode } from "./shelf/types";
 let storeRef: ShelfStore | undefined;
 
 const FAVORITES_EMPTY_MESSAGE =
-  "No favorites yet. Right-click any file or folder and choose Add to Favorites.";
+  "No favorites yet. Right-click any file or folder to add one.";
 const RECENT_EMPTY_MESSAGE =
   "Nothing recent. Files you open from your shelf will appear here.";
 const LIBRARY_EMPTY_MESSAGE =

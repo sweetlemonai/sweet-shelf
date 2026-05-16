@@ -34,7 +34,7 @@ export function registerCommands(
   registerFolderCommands(context, store, treeView);
   registerFolderEntryCommands(context, store, treeView);
   registerAliasCommands(context, store);
-  registerFavoriteCommands(context, store);
+  registerFavoriteCommands(context, store, treeView, provider);
   registerRecentCommands(context, store);
   registerFocusCommands(context, store);
   registerColorCommands(context, store);

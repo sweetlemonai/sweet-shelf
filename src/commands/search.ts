@@ -84,6 +84,7 @@ async function openSearch(
     .get<boolean>("showFileExtensions", true);
   const allItems = buildSearchableItems(
     store.library,
+    (path) => store.isFavoritedPath(path),
     brokenLinks,
     showExtensions,
     scopeNodeId,

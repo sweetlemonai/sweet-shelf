@@ -39,10 +39,12 @@ export function buildExport(
   }
   return {
     version: config.version,
-    favoritesOrder: [...config.favoritesOrder],
+    favorites: config.favorites.map((fav) => ({
+      ...fav,
+      favoritedAt: exportTimestamp,
+    })),
     focusedItemId: config.focusedItemId,
     library: config.library.map((c) => scrubCategory(c, exportTimestamp)),
-    favorites: [],
     recent: [],
   };
 }
@@ -70,9 +72,8 @@ function scrubChild(child: CategoryChild, ts: string): CategoryChild {
 }
 
 function scrubRef(ref: FileRef | FolderRef, ts: string): FileRef | FolderRef {
-  // Build the common base. `lastOpenedAt` is intentionally never copied —
-  // it's pure usage telemetry. `favoritedAt` IS copied (favorited status
-  // is structural) but reset to the export timestamp.
+  // Build the common base. `lastOpenedAt` is intentionally never
+  // copied — it's pure usage telemetry.
   const base = {
     id: ref.id,
     path: ref.path,
@@ -88,9 +89,6 @@ function scrubRef(ref: FileRef | FolderRef, ts: string): FileRef | FolderRef {
     if (ref.colorLabel !== undefined) {
       out.colorLabel = ref.colorLabel;
     }
-    if (ref.favoritedAt !== undefined) {
-      out.favoritedAt = ts;
-    }
     return out;
   }
   const out: FolderRef = { ...base, kind: "folder" };
@@ -99,9 +97,6 @@ function scrubRef(ref: FileRef | FolderRef, ts: string): FileRef | FolderRef {
   }
   if (ref.colorLabel !== undefined) {
     out.colorLabel = ref.colorLabel;
-  }
-  if (ref.favoritedAt !== undefined) {
-    out.favoritedAt = ts;
   }
   return out;
 }
@@ -120,9 +115,8 @@ export function summarizeImport(config: ShelfConfig): ImportSummary {
     categories: 0,
     files: 0,
     folders: 0,
-    favorites: 0,
+    favorites: config.favorites.length,
   };
-  const refIds = new Set<string>();
   for (const node of walkAll(config.library)) {
     switch (node.kind) {
       case "category":
@@ -130,17 +124,10 @@ export function summarizeImport(config: ShelfConfig): ImportSummary {
         break;
       case "file":
         counts.files += 1;
-        refIds.add(node.id);
         break;
       case "folder":
         counts.folders += 1;
-        refIds.add(node.id);
         break;
-    }
-  }
-  for (const id of config.favoritesOrder) {
-    if (refIds.has(id)) {
-      counts.favorites += 1;
     }
   }
   return counts;

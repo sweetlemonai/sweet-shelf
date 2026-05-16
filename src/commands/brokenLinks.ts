@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { log, logError } from "../util/logger";
 import { walkAll } from "../shelf/categories";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
-import type { FileRef, FolderRef, ShelfNode } from "../shelf/types";
+import type { ShelfNode } from "../shelf/types";
 import type { ShelfStore } from "../shelf/store";
 
 /**
@@ -58,11 +58,11 @@ async function locateAgain(
   store: ShelfStore,
   node: ShelfNode | undefined,
 ): Promise<void> {
-  const ref = unwrapRef(node);
-  if (!ref) {
+  const target = brokenTarget(node);
+  if (!target) {
     throw new Error("This command needs a file or folder.");
   }
-  const isFile = ref.kind === "file";
+  const isFile = target.kind === "file";
   const picked = await vscode.window.showOpenDialog({
     canSelectFiles: isFile,
     canSelectFolders: !isFile,
@@ -87,15 +87,19 @@ async function locateAgain(
       "Selected item is a file, not a folder. Please pick a folder.",
     );
   }
-  store.locateAgain(ref.id, newPath);
+  if (target.scope === "favorite") {
+    store.relocateFavorite(target.id, newPath);
+  } else {
+    store.locateAgain(target.id, newPath);
+  }
 }
 
 async function revealParent(node: ShelfNode | undefined): Promise<void> {
-  const ref = unwrapRef(node);
-  if (!ref) {
+  const target = brokenTarget(node);
+  if (!target) {
     throw new Error("This command needs a file or folder.");
   }
-  const ancestor = await findExistingAncestor(ref.path);
+  const ancestor = await findExistingAncestor(target.path);
   if (ancestor === null) {
     throw new Error("Couldn't find any existing parent folder.");
   }
@@ -111,11 +115,11 @@ async function revealParent(node: ShelfNode | undefined): Promise<void> {
 }
 
 async function copyMissingPath(node: ShelfNode | undefined): Promise<void> {
-  const ref = unwrapRef(node);
-  if (!ref) {
+  const target = brokenTarget(node);
+  if (!target) {
     throw new Error("This command needs a file or folder.");
   }
-  await vscode.env.clipboard.writeText(ref.path);
+  await vscode.env.clipboard.writeText(target.path);
   vscode.window.setStatusBarMessage("Path copied.", 2000);
 }
 
@@ -181,18 +185,46 @@ function showBrokenClickToast(): void {
   );
 }
 
-function unwrapRef(node: ShelfNode | undefined): FileRef | FolderRef | null {
+interface BrokenTarget {
+  scope: "library" | "favorite";
+  id: string;
+  path: string;
+  kind: "file" | "folder";
+}
+
+function brokenTarget(node: ShelfNode | undefined): BrokenTarget | null {
   if (!node) {
     return null;
   }
   switch (node.kind) {
     case "file":
-      return node.file;
+      return {
+        scope: "library",
+        id: node.file.id,
+        path: node.file.path,
+        kind: "file",
+      };
     case "folder":
-      return node.folder;
+      return {
+        scope: "library",
+        id: node.folder.id,
+        path: node.folder.path,
+        kind: "folder",
+      };
     case "favoritesEntry":
+      return {
+        scope: "favorite",
+        id: node.favorite.id,
+        path: node.favorite.path,
+        kind: node.favorite.kind,
+      };
     case "recentEntry":
-      return node.ref;
+      return {
+        scope: "library",
+        id: node.ref.id,
+        path: node.ref.path,
+        kind: node.ref.kind,
+      };
     default:
       return null;
   }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as nodePath from "node:path";
 import * as vscode from "vscode";
 
@@ -36,6 +37,7 @@ import {
   MAX_CATEGORY_LABEL_LENGTH,
   type Category,
   type CategoryChild,
+  type Favorite,
   type FileRef,
   type FolderRef,
   type ShelfConfig,
@@ -109,9 +111,9 @@ export class ShelfStore implements vscode.Disposable {
     return this.state.library;
   }
 
-  /** Read-only snapshot of the favorites display order (ref ids). */
-  get favoritesOrder(): readonly string[] {
-    return this.state.favoritesOrder;
+  /** Read-only snapshot of the favorites list, in user-orderable sequence. */
+  get favorites(): readonly Favorite[] {
+    return this.state.favorites;
   }
 
   /** On-disk location of the config file (for the reveal command). */
@@ -195,6 +197,19 @@ export class ShelfStore implements vscode.Disposable {
   /** Look up any child by id, regardless of kind. */
   findAnyChild(id: string): CategoryChild | undefined {
     return findChild(this.state.library, id);
+  }
+
+  /**
+   * Look up a file or folder ref by id. Returns undefined for
+   * categories or unknown ids. Used by Search and any other surface
+   * that needs to resolve a Library-ref id to its concrete data.
+   */
+  findRefById(id: string): FileRef | FolderRef | undefined {
+    const child = findChild(this.state.library, id);
+    if (!child || child.kind === "category") {
+      return undefined;
+    }
+    return child;
   }
 
   /**
@@ -282,15 +297,17 @@ export class ShelfStore implements vscode.Disposable {
     if (!removed) {
       return;
     }
-    // Cascade: any descendant refs that were favorited come out of
-    // favoritesOrder too, otherwise we'd leak ghost ids.
+    // Cascade favorites: any favorite whose path is at or under any
+    // descendant file/folder of the removed subtree gets dropped.
     if (removed.kind === "category") {
-      const descendantIds = collectRefIds(removed);
-      if (descendantIds.length > 0) {
-        this.dropFromFavoritesOrder(new Set(descendantIds));
+      const descendantPaths = collectRefPaths(removed);
+      for (const path of descendantPaths) {
+        this.dropFavoritesAtOrUnder(path, /* prefixOnly */ false);
       }
-    } else if (removed.kind === "file" || removed.kind === "folder") {
-      this.dropFromFavoritesOrder(new Set([removed.id]));
+    } else if (removed.kind === "file") {
+      this.dropFavoritesAtOrUnder(removed.path, /* prefixOnly */ true);
+    } else if (removed.kind === "folder") {
+      this.dropFavoritesAtOrUnder(removed.path, /* prefixOnly */ false);
     }
     this.maybeNotifyFocusExit(focusedLabelBefore);
     this.notifyChanged();
@@ -404,69 +421,6 @@ export class ShelfStore implements vscode.Disposable {
     return ref;
   }
 
-  /**
-   * Add a file ref AND favorite it in one atomic mutation. Throws
-   * `AlreadyOnShelfError` if the path is already on the shelf — the
-   * command handler then offers the user the option of favoriting
-   * the existing ref instead.
-   *
-   * Inlines the work of `addFile` + `favoriteFile` so a single
-   * `notifyChanged` covers both, the tree refreshes once, and the
-   * favorite never appears momentarily un-starred between the two
-   * events.
-   */
-  addAndFavoriteFile(parentCategoryId: string, absolutePath: string): FileRef {
-    if (!nodePath.isAbsolute(absolutePath)) {
-      throw new Error("Sweet Shelf needs an absolute path.");
-    }
-    const parent = this.findCategory(parentCategoryId);
-    if (!parent) {
-      throw new Error("That category is no longer on the shelf.");
-    }
-    const canonical = canonicalizePath(absolutePath);
-    const existing = findExistingReferenceByPath(this.state.library, canonical);
-    if (existing) {
-      throw new AlreadyOnShelfError(existing.ref, existing.parentLabel);
-    }
-    const ref = makeFileRef(canonical);
-    insertChild(parent, ref);
-    ref.favoritedAt = new Date().toISOString();
-    if (!this.state.favoritesOrder.includes(ref.id)) {
-      this.state.favoritesOrder.push(ref.id);
-    }
-    this.brokenLinks?.markAsExisting(canonical);
-    this.notifyChanged();
-    return ref;
-  }
-
-  /** Add a folder ref AND favorite it. See `addAndFavoriteFile`. */
-  addAndFavoriteFolder(
-    parentCategoryId: string,
-    absolutePath: string,
-  ): FolderRef {
-    if (!nodePath.isAbsolute(absolutePath)) {
-      throw new Error("Sweet Shelf needs an absolute path.");
-    }
-    const parent = this.findCategory(parentCategoryId);
-    if (!parent) {
-      throw new Error("That category is no longer on the shelf.");
-    }
-    const canonical = canonicalizePath(absolutePath);
-    const existing = findExistingReferenceByPath(this.state.library, canonical);
-    if (existing) {
-      throw new AlreadyOnShelfError(existing.ref, existing.parentLabel);
-    }
-    const ref = makeFolderRef(canonical);
-    insertChild(parent, ref);
-    ref.favoritedAt = new Date().toISOString();
-    if (!this.state.favoritesOrder.includes(ref.id)) {
-      this.state.favoritesOrder.push(ref.id);
-    }
-    this.brokenLinks?.markAsExisting(canonical);
-    this.notifyChanged();
-    return ref;
-  }
-
   /** Remove a file reference. No-op if the id is unknown or not a file. */
   removeFile(id: string): void {
     const ref = this.findFile(id);
@@ -476,7 +430,7 @@ export class ShelfStore implements vscode.Disposable {
     const focusedLabelBefore = this.snapshotFocusedLabel();
     const path = ref.path;
     removeChildById(this.state.library, id);
-    this.dropFromFavoritesOrder(new Set([id]));
+    this.dropFavoritesAtOrUnder(path, /* prefixOnly */ true);
     this.brokenLinks?.invalidate(path);
     this.maybeNotifyFocusExit(focusedLabelBefore);
     this.notifyChanged();
@@ -491,7 +445,10 @@ export class ShelfStore implements vscode.Disposable {
     const focusedLabelBefore = this.snapshotFocusedLabel();
     const path = ref.path;
     removeChildById(this.state.library, id);
-    this.dropFromFavoritesOrder(new Set([id]));
+    // Folder removal cascades: any favorite at-or-under the removed
+    // folder's path is dropped, since the folder no longer anchors
+    // anything in Library.
+    this.dropFavoritesAtOrUnder(path, /* prefixOnly */ false);
     this.brokenLinks?.invalidate(path);
     this.maybeNotifyFocusExit(focusedLabelBefore);
     this.notifyChanged();
@@ -614,8 +571,7 @@ export class ShelfStore implements vscode.Disposable {
 
   /**
    * Stamp `lastOpenedAt` on the file or folder with `id`. No-op for
-   * unknown ids or category ids. Wired now even though no view consumes
-   * the field — Task 6 (Recent) reads it.
+   * unknown ids or category ids.
    */
   recordOpened(id: string): void {
     const child = findChild(this.state.library, id);
@@ -658,29 +614,72 @@ export class ShelfStore implements vscode.Disposable {
 
   /* ─────────────── Favorites ─────────────── */
 
-  /** Add a file ref to Favorites. No-op if already favorited. */
-  favoriteFile(id: string): void {
-    this.setFavorited("file", id, true);
+  /**
+   * Add a path to Favorites. No-op if the path is already favorited
+   * (case-insensitive on macOS / Windows). Returns the new (or
+   * existing) `Favorite`.
+   */
+  addFavorite(absolutePath: string, kind: "file" | "folder"): Favorite {
+    if (!nodePath.isAbsolute(absolutePath)) {
+      throw new Error("Sweet Shelf needs an absolute path.");
+    }
+    const canonical = canonicalizePath(absolutePath);
+    const existing = this.findFavoriteByPath(canonical);
+    if (existing) {
+      return existing;
+    }
+    const fav: Favorite = {
+      id: randomUUID(),
+      kind,
+      path: canonical,
+      favoritedAt: new Date().toISOString(),
+    };
+    this.state.favorites.push(fav);
+    this.brokenLinks?.markAsExisting(canonical);
+    this.notifyChanged();
+    return fav;
   }
 
-  /** Remove a file ref from Favorites. No-op if not favorited. */
-  unfavoriteFile(id: string): void {
-    this.setFavorited("file", id, false);
+  /**
+   * Remove the favorite at the given path. No-op if no entry matches.
+   * Returns `true` when something was removed.
+   */
+  removeFavoriteByPath(absolutePath: string): boolean {
+    const canonical = canonicalizePath(absolutePath);
+    const idx = this.state.favorites.findIndex((f) =>
+      pathsEqual(f.path, canonical),
+    );
+    if (idx === -1) {
+      return false;
+    }
+    this.state.favorites.splice(idx, 1);
+    this.notifyChanged();
+    return true;
   }
 
-  /** Add a folder ref to Favorites. */
-  favoriteFolder(id: string): void {
-    this.setFavorited("folder", id, true);
+  /** True if `path` is currently favorited. */
+  isFavoritedPath(path: string): boolean {
+    return this.findFavoriteByPath(path) !== undefined;
   }
 
-  /** Remove a folder ref from Favorites. */
-  unfavoriteFolder(id: string): void {
-    this.setFavorited("folder", id, false);
+  /** Find the favorite at `path`, if any. */
+  findFavoriteByPath(path: string): Favorite | undefined {
+    for (const fav of this.state.favorites) {
+      if (pathsEqual(fav.path, path)) {
+        return fav;
+      }
+    }
+    return undefined;
   }
 
-  /** Move a favorited ref one position up or down within `favoritesOrder`. */
+  /** Find a favorite by its id. */
+  findFavoriteById(id: string): Favorite | undefined {
+    return this.state.favorites.find((f) => f.id === id);
+  }
+
+  /** Move a favorite one slot up or down. */
   moveFavorite(id: string, direction: "up" | "down"): void {
-    const idx = this.state.favoritesOrder.indexOf(id);
+    const idx = this.state.favorites.findIndex((f) => f.id === id);
     if (idx === -1) {
       return;
     }
@@ -688,17 +687,16 @@ export class ShelfStore implements vscode.Disposable {
   }
 
   /**
-   * Move a favorited ref to a specific position. Clamps to bounds and
-   * accounts for the index shift when source and destination are in the
-   * same array (matches the pattern used by `moveCategory`).
+   * Move a favorite to a specific index. Clamps to bounds and
+   * accounts for the same-array index shift (matches `moveCategory`).
    */
   moveFavoriteTo(id: string, newIndex: number): void {
-    const order = this.state.favoritesOrder;
-    const currentIdx = order.indexOf(id);
+    const list = this.state.favorites;
+    const currentIdx = list.findIndex((f) => f.id === id);
     if (currentIdx === -1) {
       return;
     }
-    const clamped = Math.max(0, Math.min(newIndex, order.length));
+    const clamped = Math.max(0, Math.min(newIndex, list.length));
     let target = clamped;
     if (clamped > currentIdx) {
       target = clamped - 1;
@@ -706,79 +704,139 @@ export class ShelfStore implements vscode.Disposable {
     if (target === currentIdx) {
       return;
     }
-    order.splice(currentIdx, 1);
-    order.splice(target, 0, id);
+    const [moved] = list.splice(currentIdx, 1);
+    list.splice(target, 0, moved);
     this.notifyChanged();
   }
 
   /**
-   * Replace the entire favorites order. Used by the tree provider when
-   * it detects drift in `favoritesOrder` at render time and persists
-   * the cleaned-up version.
+   * Set the favorite's display alias. No-op when the trimmed value
+   * matches the current alias.
    */
-  replaceFavoritesOrder(order: readonly string[]): void {
-    if (sameOrder(this.state.favoritesOrder, order)) {
+  setFavoriteAlias(id: string, alias: string): void {
+    const trimmed = alias.trim();
+    if (trimmed.length === 0) {
+      throw new Error("Display name can't be empty.");
+    }
+    if (trimmed.length > MAX_CATEGORY_LABEL_LENGTH) {
+      throw new Error(
+        `Display names are capped at ${MAX_CATEGORY_LABEL_LENGTH} characters.`,
+      );
+    }
+    const fav = this.findFavoriteById(id);
+    if (!fav) {
+      throw new Error("That favorite is no longer on the shelf.");
+    }
+    if (fav.alias === trimmed) {
       return;
     }
-    this.state.favoritesOrder = [...order];
+    fav.alias = trimmed;
+    this.notifyChanged();
+  }
+
+  /** Clear the favorite's alias. */
+  clearFavoriteAlias(id: string): void {
+    const fav = this.findFavoriteById(id);
+    if (!fav || fav.alias === undefined) {
+      return;
+    }
+    delete fav.alias;
     this.notifyChanged();
   }
 
   /**
-   * True if any favorited ref's path matches `path`. Used by the file
-   * decoration provider to badge favorited URIs across the workbench.
-   * Linear over the library; short-circuits on first match.
+   * Re-point a favorite at a different path. Mirrors `locateAgain`
+   * for Library refs; used by the broken-link recovery flow when a
+   * favorite's path goes missing on disk.
    */
-  isFavoritedPath(path: string): boolean {
-    for (const node of walkAll(this.state.library)) {
-      if (node.kind === "category") {
-        continue;
-      }
-      if (node.favoritedAt === undefined) {
-        continue;
-      }
-      if (pathsEqual(node.path, path)) {
-        return true;
-      }
+  relocateFavorite(id: string, newAbsolutePath: string): void {
+    const fav = this.findFavoriteById(id);
+    if (!fav) {
+      throw new Error("That favorite is no longer on the shelf.");
     }
-    return false;
+    if (!nodePath.isAbsolute(newAbsolutePath)) {
+      throw new Error("Sweet Shelf needs an absolute path.");
+    }
+    const newPath = canonicalizePath(newAbsolutePath);
+    if (pathsEqual(fav.path, newPath)) {
+      return;
+    }
+    const oldPath = fav.path;
+    fav.path = newPath;
+    this.brokenLinks?.invalidate(oldPath);
+    this.brokenLinks?.markAsExisting(newPath);
+    this.notifyChanged();
   }
 
-  private setFavorited(
-    expectedKind: "file" | "folder",
-    id: string,
-    favorited: boolean,
+  /** Set / clear color tint on a favorite. */
+  setFavoriteColorLabel(id: string, color: ColorLabel): void {
+    const fav = this.findFavoriteById(id);
+    if (!fav || fav.colorLabel === color) {
+      return;
+    }
+    fav.colorLabel = color;
+    this.notifyChanged();
+  }
+  clearFavoriteColorLabel(id: string): void {
+    const fav = this.findFavoriteById(id);
+    if (!fav || fav.colorLabel === undefined) {
+      return;
+    }
+    delete fav.colorLabel;
+    this.notifyChanged();
+  }
+
+  /**
+   * Cascade helper: remove favorites whose path matches (or, when
+   * `prefixOnly` is false, is at-or-under) `absolutePath`. Used by
+   * `removeFile` / `removeFolder` / `removeCategory` to keep favorites
+   * coherent when the underlying Library scaffolding goes away.
+   *
+   * `prefixOnly === true` → exact-path match only (for file refs).
+   * `prefixOnly === false` → exact match OR descendants (for folder refs).
+   */
+  private dropFavoritesAtOrUnder(
+    absolutePath: string,
+    prefixOnly: boolean,
   ): void {
-    const child = findChild(this.state.library, id);
-    if (!child || child.kind !== expectedKind) {
+    if (this.state.favorites.length === 0) {
       return;
     }
-    if (favorited) {
-      if (child.favoritedAt !== undefined) {
-        return;
+    const before = this.state.favorites.length;
+    this.state.favorites = this.state.favorites.filter((fav) => {
+      if (pathsEqual(fav.path, absolutePath)) {
+        return false;
       }
-      child.favoritedAt = new Date().toISOString();
-      if (!this.state.favoritesOrder.includes(id)) {
-        this.state.favoritesOrder.push(id);
+      if (!prefixOnly && isDescendantPath(fav.path, absolutePath)) {
+        return false;
       }
-    } else {
-      if (child.favoritedAt === undefined) {
-        return;
-      }
-      delete child.favoritedAt;
-      this.dropFromFavoritesOrder(new Set([id]));
+      return true;
+    });
+    if (this.state.favorites.length !== before) {
+      // notifyChanged is fired by the calling mutator.
     }
-    child.updatedAt = new Date().toISOString();
-    this.notifyChanged();
   }
 
-  private dropFromFavoritesOrder(ids: Set<string>): void {
-    if (ids.size === 0) {
+  /**
+   * Cascade helper: rewrite favorite paths after a Library
+   * rename-on-disk. `oldPrefix` and `newPrefix` are canonicalized
+   * absolute paths.
+   */
+  private rewriteFavoritePathPrefix(
+    oldPrefix: string,
+    newPrefix: string,
+  ): void {
+    if (this.state.favorites.length === 0) {
       return;
     }
-    this.state.favoritesOrder = this.state.favoritesOrder.filter(
-      (id) => !ids.has(id),
-    );
+    for (const fav of this.state.favorites) {
+      const rewritten = rewritePathPrefix(fav.path, oldPrefix, newPrefix);
+      if (rewritten !== fav.path) {
+        this.brokenLinks?.invalidate(fav.path);
+        fav.path = rewritten;
+        this.brokenLinks?.markAsExisting(rewritten);
+      }
+    }
   }
 
   /* ─────────────── Color labels ─────────────── */
@@ -881,6 +939,8 @@ export class ShelfStore implements vscode.Disposable {
     ref.path = newPath;
     ref.label = nodePath.basename(newPath);
     ref.updatedAt = new Date().toISOString();
+    // Cascade favorites: a favorite at the old path follows the rename.
+    this.rewriteFavoritePathPrefix(oldPath, newPath);
     this.brokenLinks?.invalidate(oldPath);
     this.brokenLinks?.markAsExisting(newPath);
     this.notifyChanged();
@@ -932,6 +992,8 @@ export class ShelfStore implements vscode.Disposable {
         this.brokenLinks?.markAsExisting(rewritten);
       }
     }
+    // Cascade favorites at-or-under the renamed folder.
+    this.rewriteFavoritePathPrefix(oldPath, newPath);
     this.brokenLinks?.invalidate(oldPath);
     this.brokenLinks?.markAsExisting(newPath);
     this.notifyChanged();
@@ -964,6 +1026,10 @@ export class ShelfStore implements vscode.Disposable {
     child.path = newPath;
     child.label = nodePath.basename(newPath);
     child.updatedAt = new Date().toISOString();
+    // Cascade favorites: locating a Library ref to a new on-disk
+    // path follows the favorite, since the user's intent was to
+    // favorite the file/folder, not its old absolute path.
+    this.rewriteFavoritePathPrefix(oldPath, newPath);
     this.brokenLinks?.invalidate(oldPath);
     this.brokenLinks?.markAsExisting(newPath);
     this.notifyChanged();
@@ -1171,15 +1237,15 @@ export class ShelfStore implements vscode.Disposable {
   }
 }
 
-/** Collect every file/folder ref id under a category subtree. */
-function collectRefIds(node: CategoryChild): string[] {
+/** Collect every file/folder ref path under a category subtree. */
+function collectRefPaths(node: CategoryChild): string[] {
   const out: string[] = [];
   visit(node);
   return out;
 
   function visit(n: CategoryChild): void {
     if (n.kind === "file" || n.kind === "folder") {
-      out.push(n.id);
+      out.push(n.path);
       return;
     }
     for (const child of n.children) {
@@ -1188,17 +1254,22 @@ function collectRefIds(node: CategoryChild): string[] {
   }
 }
 
-/** Cheap equality check on two ordered string arrays. */
-function sameOrder(a: readonly string[], b: readonly string[]): boolean {
-  if (a.length !== b.length) {
+/**
+ * True when `descendant` is strictly inside `ancestor` (not equal).
+ * Mirrors `pathsEqual`'s case-folding rules — case-insensitive on
+ * macOS / Windows, case-sensitive on Linux. Both inputs should be
+ * canonicalized.
+ */
+function isDescendantPath(descendant: string, ancestor: string): boolean {
+  if (pathsEqual(descendant, ancestor)) {
     return false;
   }
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
+  const sep = nodePath.sep;
+  const prefix = ancestor.endsWith(sep) ? ancestor : ancestor + sep;
+  if (process.platform === "win32" || process.platform === "darwin") {
+    return descendant.toLowerCase().startsWith(prefix.toLowerCase());
   }
-  return true;
+  return descendant.startsWith(prefix);
 }
 
 /**

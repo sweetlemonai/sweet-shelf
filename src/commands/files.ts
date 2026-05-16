@@ -114,10 +114,7 @@ function fileRefIdFromNode(node: ShelfNode | undefined): string | null {
   if (node.kind === "file") {
     return node.file.id;
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "file"
-  ) {
+  if (node.kind === "recentEntry" && node.ref.kind === "file") {
     return node.ref.id;
   }
   return null;
@@ -174,11 +171,12 @@ function fileTarget(node: ShelfNode | undefined): FileTarget {
   if (node.kind === "file") {
     return { uri: vscode.Uri.file(node.file.path), recordOnId: node.file.id };
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "file"
-  ) {
+  if (node.kind === "recentEntry" && node.ref.kind === "file") {
     return { uri: vscode.Uri.file(node.ref.path), recordOnId: node.ref.id };
+  }
+  if (node.kind === "favoritesEntry" && node.favorite.kind === "file") {
+    // Favorites are path-only — no Library id to recordOpened on.
+    return { uri: vscode.Uri.file(node.favorite.path), recordOnId: null };
   }
   if (node.kind === "folderEntry" && !node.isDirectory && !node.isSymlink) {
     return { uri: node.uri, recordOnId: null };
@@ -190,9 +188,11 @@ async function tryOpenFile(
   uri: vscode.Uri,
   column: vscode.ViewColumn,
 ): Promise<void> {
+  // `vscode.open` routes through VS Code's universal opener so
+  // images, PDFs, and custom-editor file types all work. The text-
+  // document path failed for anything binary.
   try {
-    const doc = await vscode.workspace.openTextDocument(uri);
-    await vscode.window.showTextDocument(doc, { viewColumn: column });
+    await vscode.commands.executeCommand("vscode.open", uri, column);
   } catch (err) {
     logError(`opening ${uri.fsPath}`, err);
     void vscode.window.showWarningMessage(

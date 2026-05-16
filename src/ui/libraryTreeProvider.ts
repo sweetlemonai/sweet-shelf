@@ -86,6 +86,7 @@ export class LibraryTreeProvider
           this.store.library,
           this.showFileExtensions(),
           this.brokenStateFor(node.file.path),
+          this.store.isFavoritedPath(node.file.path),
         );
       case "folder":
         return buildFolderTreeItem(
@@ -93,9 +94,13 @@ export class LibraryTreeProvider
           this.store.library,
           this.showFileExtensions(),
           this.brokenStateFor(node.folder.path),
+          this.store.isFavoritedPath(node.folder.path),
         );
       case "folderEntry":
-        return buildFolderEntryTreeItem(node);
+        return buildFolderEntryTreeItem(
+          node,
+          this.store.isFavoritedPath(node.uri.fsPath),
+        );
       case "folderEntryError":
         return buildFolderEntryErrorTreeItem(node);
       case "folderEntryOverflow":
@@ -227,6 +232,32 @@ export class LibraryTreeProvider
         return undefined;
       }
       return buildFolderNode(folder, info.parent.id);
+    }
+    return undefined;
+  }
+
+  /**
+   * Resolve an absolute on-disk path to a Library `ShelfNode` if any
+   * file/folder ref's path matches. Used by the Favorites click
+   * dispatcher: a folder favorite's path may correspond exactly to a
+   * Library folder ref, or to nothing (in which case the dispatcher
+   * walks up to the closest Library ancestor).
+   */
+  nodeForPath(path: string): ShelfNode | undefined {
+    for (const node of walkAll(this.store.library)) {
+      if (node.kind === "category") {
+        continue;
+      }
+      if (!pathsEqual(node.path, path)) {
+        continue;
+      }
+      const info = this.store.getRefParent(node.id);
+      if (!info) {
+        continue;
+      }
+      return node.kind === "file"
+        ? buildFileNode(node, info.parent.id)
+        : buildFolderNode(node, info.parent.id);
     }
     return undefined;
   }

@@ -42,8 +42,6 @@ export interface FileRef {
   updatedAt: string;
   /** ISO timestamp of the most recent open via the shelf, if any. */
   lastOpenedAt?: string;
-  /** ISO timestamp set when the user adds the ref to Favorites; presence === favorited. */
-  favoritedAt?: string;
 }
 
 /**
@@ -63,8 +61,6 @@ export interface FolderRef {
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;
-  /** ISO timestamp set when the user adds the ref to Favorites; presence === favorited. */
-  favoritedAt?: string;
 }
 
 /**
@@ -92,6 +88,30 @@ export interface Category {
 }
 
 /**
+ * A favorited path. Independent of the Library — favorites can point
+ * at any file or folder visible anywhere in the sidebar (a Library
+ * ref or a sub-entry inside an inline-browsed folder). The Favorites
+ * view renders entries in array order; the user reorders via Move
+ * Up / Move Down or drag.
+ *
+ * `alias` and `colorLabel` are intentionally independent from
+ * Library-ref alias/color: the same path can have one display name
+ * in Library and a different one in Favorites. `favoritedAt` records
+ * when the favorite was added.
+ */
+export interface Favorite {
+  id: string;
+  kind: "file" | "folder";
+  /** Absolute, normalized on-disk path. */
+  path: string;
+  /** User-provided display name. When set, wins over the path basename. */
+  alias?: string;
+  /** Optional color tint; absence means "no color." */
+  colorLabel?: ColorLabel;
+  favoritedAt: string;
+}
+
+/**
  * A node in the Sweet Shelf tree.
  *
  * Three view-only inline-browse variants (`folderEntry`,
@@ -100,9 +120,9 @@ export interface Category {
  * validator's "unknown child kind" error backstops accidental
  * persistence.
  *
- * Library, Favorites, and Recent are now separate VS Code views (Task
- * 12), so there's no `section` variant — each view's tree is rooted
- * at its content directly. Empty-state copy is rendered via
+ * Library, Favorites, and Recent are now separate VS Code views
+ * (Task 12), so there's no `section` variant — each view's tree is
+ * rooted at its content directly. Empty-state copy is rendered via
  * `TreeView.message`, not as a fake leaf node.
  *
  * Provider code switches on `node.kind` so missing cases are flagged
@@ -119,12 +139,12 @@ export type ShelfNode =
   | { kind: "folder"; folder: FolderRef; parentId: string }
   | {
       /**
-       * Surfaces a Library file or folder ref in the Favorites view.
-       * Never persisted — Favorites is a derived view ordered by
-       * `ShelfConfig.favoritesOrder`.
+       * Surfaces a single entry from `ShelfConfig.favorites` in the
+       * Favorites view. Never persisted — the Favorites array is
+       * the source of truth for the row's data.
        */
       kind: "favoritesEntry";
-      ref: FileRef | FolderRef;
+      favorite: Favorite;
     }
   | {
       /**
@@ -177,20 +197,18 @@ export type ShelfNode =
  * The persisted shape of the shelf. Bumped via `version` whenever the
  * schema changes incompatibly so future migrations can branch on it.
  *
- * Favorites and Recent are derived views, not separate storage. The
- * `favorites` and `recent` arrays remain `never[]` to make accidental
- * persistence impossible. `favoritesOrder` carries the user-
- * controllable order of favorited refs (which themselves live in
- * `library`).
+ * `favorites` is the user-orderable list of favorited paths; it lives
+ * alongside but independent of `library`. The `favorites` and
+ * `recent` array fields kept here as `never[]` reserved slots are
+ * legacy from earlier tasks and are not used.
  */
 export interface ShelfConfig {
   version: 1;
   /**
-   * IDs of favorited file/folder refs, in display order. Each ID
-   * corresponds to a ref somewhere in `library` whose `favoritedAt`
-   * is set. Cleaned at render time if any IDs no longer resolve.
+   * Favorites — a flat, user-orderable list of file/folder paths.
+   * Each entry is independent of `library` (see `Favorite`).
    */
-  favoritesOrder: string[];
+  favorites: Favorite[];
   /**
    * ID of the currently focused category or folder ref, or `null`
    * for normal mode. When set, the Library view shows a focus header
@@ -199,35 +217,31 @@ export interface ShelfConfig {
    */
   focusedItemId: string | null;
   library: Category[];
-  favorites: never[];
+  /** Reserved (unused) — kept here for shelf.json forward-compat. */
   recent: never[];
 }
 
 /** The default shelf state used when no config exists or the file is invalid. */
 export const DEFAULT_SHELF_CONFIG: ShelfConfig = {
   version: 1,
-  favoritesOrder: [],
+  favorites: [],
   focusedItemId: null,
   library: [],
-  favorites: [],
   recent: [],
 };
 
 /**
- * Thrown by `ShelfStore.addFile` / `addFolder` / `addAndFavoriteFile`
- * / `addAndFavoriteFolder` when the path is already on the shelf.
- * Carries the existing reference and its parent category's label so
- * the caller (single add, OS-drop loop, "Add to Favorites" flow) can
- * surface a targeted message without re-walking the tree.
+ * Thrown by the store's `addFile` / `addFolder` methods when the same
+ * path is already on the shelf in some Library category. Carries the
+ * existing reference and its parent category's label so callers can
+ * surface a precise message without re-walking the tree.
  */
 export class AlreadyOnShelfError extends Error {
   readonly ref: FileRef | FolderRef;
   readonly parentLabel: string;
 
   constructor(ref: FileRef | FolderRef, parentLabel: string) {
-    super(
-      `This ${ref.kind} is already on your shelf in "${parentLabel}".`,
-    );
+    super(`This ${ref.kind} is already on your shelf in "${parentLabel}".`);
     this.name = "AlreadyOnShelfError";
     this.ref = ref;
     this.parentLabel = parentLabel;

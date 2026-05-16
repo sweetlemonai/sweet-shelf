@@ -13,6 +13,7 @@ import { fileDisplayName, folderDisplayName } from "../shelf/labels";
 import { themeColorIdFor, type ColorLabel } from "../shelf/color";
 import type {
   Category,
+  Favorite,
   FileRef,
   FolderRef,
   ShelfNode,
@@ -20,16 +21,15 @@ import type {
 
 /**
  * Shared rendering helpers used by all three tree providers (Library,
- * Favorites, Recent). Exported so each provider class stays thin and
- * focused on which subset of the tree it owns.
+ * Favorites, Recent). Each builder takes the underlying ref/category,
+ * the library snapshot (for disambiguation), the active settings, the
+ * broken state, and a favorited flag — then returns a `vscode.TreeItem`.
  *
- * Pure-ish: each builder takes the underlying ref/category, the
- * library snapshot (for disambiguation), the active settings, and the
- * broken state, and returns a `vscode.TreeItem`. No subscriptions,
- * no event listeners — those live in the provider classes.
- *
- * Also re-exports the `ShelfNode` constructors used by command
- * handlers for `treeView.reveal` after-add flows.
+ * Favorites are path-based and authoritative across the sidebar
+ * (Task 16). Tree builders accept `favorited: boolean` from callers
+ * — providers pass `store.isFavoritedPath(path)`. The `.favorited`
+ * suffix on `contextValue` toggles the menu item between "Add to
+ * Favorites" and "Remove from Favorites".
  */
 
 /* ────────────────── ShelfNode constructors ────────────────── */
@@ -54,7 +54,12 @@ export function buildFolderNode(
 
 /* ────────────────── TreeItem builders ────────────────── */
 
-/** Build a TreeItem for a category. Color tints the folder icon directly. */
+/**
+ * Build a TreeItem for a category. Color tints the folder icon
+ * directly. Click toggles expand/collapse so a click anywhere on the
+ * row behaves the same as the chevron (the tree row is the focused
+ * row by the time the command fires).
+ */
 export function buildCategoryTreeItem(category: Category): vscode.TreeItem {
   const collapsible =
     category.children.length > 0
@@ -65,6 +70,12 @@ export function buildCategoryTreeItem(category: Category): vscode.TreeItem {
   item.contextValue = "category";
   item.iconPath = categoryIcon(category.colorLabel);
   item.tooltip = category.label;
+  if (collapsible !== vscode.TreeItemCollapsibleState.None) {
+    item.command = {
+      command: "sweetShelf._toggleExpand",
+      title: "Toggle",
+    };
+  }
   return item;
 }
 
@@ -74,13 +85,19 @@ export function buildFileTreeItem(
   library: readonly Category[],
   showExtensions: boolean,
   broken: boolean,
+  favorited: boolean,
 ): vscode.TreeItem {
   const item = new vscode.TreeItem(
     fileDisplayName(file, showExtensions),
     vscode.TreeItemCollapsibleState.None,
   );
   item.id = `file:${file.id}`;
-  item.contextValue = refContextValue("file", file, true, broken);
+  item.contextValue = refContextValue(
+    "file",
+    file.alias !== undefined,
+    favorited,
+    broken,
+  );
   item.resourceUri = vscode.Uri.file(file.path);
   item.iconPath = vscode.ThemeIcon.File;
   item.tooltip = brokenTooltip(file.path, broken, "file");
@@ -100,18 +117,19 @@ export function buildFileTreeItem(
 }
 
 /**
- * Build a TreeItem for a Library folder ref. Folders are collapsible
- * — clicking the chevron triggers inline browsing in the same view
- * (the Library view's `getChildren` reads the directory). Single-
- * click on the label dispatches `_openFolderDefault`, which honors
- * the configured action ('browse' / openInCurrentWindow / openInNewWindow).
- * Missing folders fall back to `_brokenClick` (the friendly toast).
+ * Build a TreeItem for a Library folder ref. Click toggles
+ * expand/collapse — same behavior as clicking the chevron — so the
+ * click target is forgiving. Inline-browsed contents render
+ * underneath when the folder is expanded. Missing folders fall back
+ * to `_brokenClick` (the friendly toast); the recovery menu offers
+ * Locate Again / Reveal Parent.
  */
 export function buildFolderTreeItem(
   folder: FolderRef,
   library: readonly Category[],
   showExtensions: boolean,
   broken: boolean,
+  favorited: boolean,
 ): vscode.TreeItem {
   const item = new vscode.TreeItem(
     folderDisplayName(folder),
@@ -120,7 +138,12 @@ export function buildFolderTreeItem(
       : vscode.TreeItemCollapsibleState.Collapsed,
   );
   item.id = `folder:${folder.id}`;
-  item.contextValue = refContextValue("folder", folder, true, broken);
+  item.contextValue = refContextValue(
+    "folder",
+    folder.alias !== undefined,
+    favorited,
+    broken,
+  );
   item.resourceUri = vscode.Uri.file(folder.path);
   item.iconPath = vscode.ThemeIcon.Folder;
   item.tooltip = brokenTooltip(folder.path, broken, "folder");
@@ -131,32 +154,74 @@ export function buildFolderTreeItem(
   if (description !== undefined) {
     item.description = description;
   }
-  item.command = brokenClickCommand(broken, {
-    kind: "folder",
-    folder,
-    parentId: "",
-  } satisfies ShelfNode, "sweetShelf._openFolderDefault");
+  if (broken) {
+    item.command = brokenClickCommand(
+      broken,
+      { kind: "folder", folder, parentId: "" } satisfies ShelfNode,
+      "sweetShelf._openFolderDefault",
+    );
+  } else {
+    item.command = { command: "sweetShelf._toggleExpand", title: "Toggle" };
+  }
   return item;
 }
 
 /**
- * Build a TreeItem for a row in the Favorites or Recent view. Reuses
- * the same display logic as Library file/folder rendering — alias →
- * basename → disambiguator → broken — so the experience is
- * consistent across views.
+ * Build a TreeItem for a Favorites view row. Favorites are path-based
+ * and independent of Library, so display reads from the `Favorite`
+ * directly (alias falls back to basename). The Favorites view does
+ * not show the star badge — every row in this view is favorited, so
+ * the badge is redundant. The decoration provider suppresses the
+ * star on file URIs that are exclusive to the favorites view (it
+ * treats path-favorited as universal; the redundancy is only an
+ * issue inside Favorites itself, where the dedicated row already
+ * communicates the meaning).
  *
- * Folders surfaced via Favorites/Recent are intentionally rendered as
- * leaves (no `Collapsed` state). Inline-browsing a folder ref happens
- * in Library; surfacing the same folder under Favorites/Recent just
- * shows a row that opens (or is acted on) like any other shortcut.
+ * Click → `_openFavoriteDefault`. Files open in place; folders
+ * navigate to the closest Library ancestor and reveal/expand there.
  */
-export function buildEntryTreeItem(
+export function buildFavoriteTreeItem(
+  fav: Favorite,
+  broken: boolean,
+): vscode.TreeItem {
+  const isFile = fav.kind === "file";
+  const display = fav.alias ?? nodePath.basename(fav.path) ?? fav.path;
+  const item = new vscode.TreeItem(
+    display,
+    vscode.TreeItemCollapsibleState.None,
+  );
+  item.id = `favoritesEntry:${fav.kind}:${fav.id}`;
+  item.contextValue = refContextValue(
+    `favoritesEntry.${fav.kind}`,
+    fav.alias !== undefined,
+    /* favorited */ true,
+    broken,
+  );
+  item.resourceUri = vscode.Uri.file(fav.path);
+  item.iconPath = isFile ? vscode.ThemeIcon.File : vscode.ThemeIcon.Folder;
+  item.tooltip = brokenTooltip(fav.path, broken, fav.kind);
+  if (broken) {
+    item.description = "(missing)";
+  }
+  const node: ShelfNode = { kind: "favoritesEntry", favorite: fav };
+  item.command = brokenClickCommand(
+    broken,
+    node,
+    "sweetShelf._openFavoriteDefault",
+  );
+  return item;
+}
+
+/**
+ * Build a TreeItem for a Recent view row. Files open in place;
+ * folders honor `defaultFolderClickAction`.
+ */
+export function buildRecentEntryTreeItem(
   ref: FileRef | FolderRef,
-  prefix: "favoritesEntry" | "recentEntry",
   library: readonly Category[],
   showExtensions: boolean,
-  includeFavoritedFlag: boolean,
   broken: boolean,
+  favorited: boolean,
 ): vscode.TreeItem {
   const isFile = ref.kind === "file";
   const display = isFile
@@ -166,16 +231,16 @@ export function buildEntryTreeItem(
     display,
     vscode.TreeItemCollapsibleState.None,
   );
-  item.id = `${prefix}:${ref.kind}:${ref.id}`;
+  item.id = `recentEntry:${ref.kind}:${ref.id}`;
   item.contextValue = refContextValue(
-    `${prefix}.${ref.kind}`,
-    ref,
-    includeFavoritedFlag,
+    `recentEntry.${ref.kind}`,
+    ref.alias !== undefined,
+    favorited,
     broken,
   );
   item.resourceUri = vscode.Uri.file(ref.path);
   item.iconPath = isFile ? vscode.ThemeIcon.File : vscode.ThemeIcon.Folder;
-  item.tooltip = brokenTooltip(ref.path, broken, isFile ? "file" : "folder");
+  item.tooltip = brokenTooltip(ref.path, broken, ref.kind);
   const description = composeDescription(
     computeDisambiguator(ref, library, showExtensions),
     broken,
@@ -183,7 +248,7 @@ export function buildEntryTreeItem(
   if (description !== undefined) {
     item.description = description;
   }
-  const node: ShelfNode = { kind: prefix, ref };
+  const node: ShelfNode = { kind: "recentEntry", ref };
   item.command = brokenClickCommand(
     broken,
     node,
@@ -192,9 +257,16 @@ export function buildEntryTreeItem(
   return item;
 }
 
-/** Build a TreeItem for an inline-browsed folder entry. */
+/**
+ * Build a TreeItem for an inline-browsed folder entry. `favorited`
+ * decides whether the contextValue ends in `.favorited`, which the
+ * right-click menu uses to swap "Add to Favorites" for "Remove from
+ * Favorites". Symlinks never get the favorites menu — they aren't
+ * unambiguous file/folder targets.
+ */
 export function buildFolderEntryTreeItem(
   node: Extract<ShelfNode, { kind: "folderEntry" }>,
+  favorited: boolean,
 ): vscode.TreeItem {
   const collapsible = node.isDirectory
     ? vscode.TreeItemCollapsibleState.Collapsed
@@ -210,10 +282,18 @@ export function buildFolderEntryTreeItem(
     item.contextValue = "folderEntry.symlink";
     item.iconPath = new vscode.ThemeIcon("file-symlink-file");
   } else if (node.isDirectory) {
-    item.contextValue = "folderEntry.directory";
+    item.contextValue = favorited
+      ? "folderEntry.directory.favorited"
+      : "folderEntry.directory";
     item.iconPath = vscode.ThemeIcon.Folder;
+    item.command = {
+      command: "sweetShelf._toggleExpand",
+      title: "Toggle",
+    };
   } else {
-    item.contextValue = "folderEntry.file";
+    item.contextValue = favorited
+      ? "folderEntry.file.favorited"
+      : "folderEntry.file";
     item.iconPath = vscode.ThemeIcon.File;
     item.command = {
       command: "sweetShelf._openFileDefault",
@@ -288,26 +368,24 @@ export function buildFocusHeaderTreeItem(
 /* ────────────────── Internal helpers ────────────────── */
 
 /**
- * Compose a contextValue string for shelf refs:
+ * Compose a contextValue string for shelf rows:
  *   <prefix>[.aliased][.favorited][.missing]
  *
- * `includeFavoritedFlag` is `false` for favoritesEntry rows since
- * they're always favorited — adding the suffix would be redundant
- * and just makes the `when` clauses noisier. The `.missing` suffix
- * is appended last so menu when-clauses can match on `\.missing$` to
- * filter to the recovery menu.
+ * The `.missing` suffix is appended last so menu when-clauses can
+ * match on `\.missing$` to filter to the recovery menu. The
+ * `.favorited` suffix toggles Add/Remove from Favorites.
  */
 function refContextValue(
   prefix: string,
-  ref: FileRef | FolderRef,
-  includeFavoritedFlag: boolean,
+  aliased: boolean,
+  favorited: boolean,
   broken: boolean,
 ): string {
   const parts = [prefix];
-  if (ref.alias !== undefined) {
+  if (aliased) {
     parts.push("aliased");
   }
-  if (includeFavoritedFlag && ref.favoritedAt !== undefined) {
+  if (favorited) {
     parts.push("favorited");
   }
   if (broken) {

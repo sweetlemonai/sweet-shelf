@@ -4,6 +4,7 @@ import {
   MAX_CATEGORY_LABEL_LENGTH,
   type Category,
   type CategoryChild,
+  type Favorite,
   type FileRef,
   type FolderRef,
   type ShelfConfig,
@@ -66,25 +67,12 @@ export function validateShelfConfig(input: unknown): ValidationResult {
     );
   }
 
-  // favoritesOrder is optional in the on-disk schema (Task 1/2/3 files
-  // predate it). Default to [] when missing; validate when present.
-  const favoritesOrderRaw = (input as Record<string, unknown>).favoritesOrder;
-  let favoritesOrder: string[] = [];
-  if (favoritesOrderRaw !== undefined) {
-    if (!Array.isArray(favoritesOrderRaw)) {
-      return failure("favoritesOrder must be an array");
-    }
-    const seen = new Set<string>();
-    for (const id of favoritesOrderRaw) {
-      if (typeof id !== "string" || id.length === 0) {
-        return failure("favoritesOrder entries must be non-empty strings");
-      }
-      if (seen.has(id)) {
-        return failure(`favoritesOrder contains duplicate id: ${id}`);
-      }
-      seen.add(id);
-    }
-    favoritesOrder = favoritesOrderRaw as string[];
+  // `favoritesOrder` was the pre-launch favorites storage. Older dev
+  // shelf.json files may still have it; drop with a one-line warning.
+  if ((input as Record<string, unknown>).favoritesOrder !== undefined) {
+    warnings.push(
+      "favoritesOrder was dropped — favorites are now stored in the favorites array.",
+    );
   }
 
   // focusedItemId is optional and may be null. When non-null it must
@@ -125,14 +113,47 @@ export function validateShelfConfig(input: unknown): ValidationResult {
     );
   }
 
-  for (const key of ["favorites", "recent"] as const) {
-    const section = (input as Record<string, unknown>)[key];
-    if (!Array.isArray(section)) {
-      return failure(`${key} must be an array`, warnings);
+  // `favoritesOnly` is accepted-but-ignored for forward-compat with
+  // any pre-launch shelf.json files written by earlier dev builds.
+  if ((input as Record<string, unknown>).favoritesOnly !== undefined) {
+    warnings.push(
+      "favoritesOnly was dropped — favorites are now path-based entries.",
+    );
+  }
+
+  // `favorites` is the new authoritative storage. Optional on read so
+  // older configs default to []. Validates each entry's shape and
+  // ensures id-uniqueness.
+  const favoritesRaw = (input as Record<string, unknown>).favorites;
+  const favorites: Favorite[] = [];
+  if (favoritesRaw !== undefined) {
+    if (!Array.isArray(favoritesRaw)) {
+      return failure("favorites must be an array", warnings);
     }
-    if (section.length !== 0) {
-      // Task 3 doesn't store items in favorites or recent yet.
-      return failure(`${key} must be empty in this version`, warnings);
+    const seenFavoriteIds = new Set<string>();
+    for (const item of favoritesRaw) {
+      const result = parseFavorite(item, warnings);
+      if (!result.ok) {
+        return failure(result.error, warnings);
+      }
+      if (seenFavoriteIds.has(result.value.id)) {
+        return failure(
+          `duplicate favorite id: ${result.value.id}`,
+          warnings,
+        );
+      }
+      seenFavoriteIds.add(result.value.id);
+      favorites.push(result.value);
+    }
+  }
+
+  const recentRaw = (input as Record<string, unknown>).recent;
+  if (recentRaw !== undefined) {
+    if (!Array.isArray(recentRaw)) {
+      return failure("recent must be an array", warnings);
+    }
+    if (recentRaw.length !== 0) {
+      return failure("recent must be empty in this version", warnings);
     }
   }
 
@@ -140,10 +161,9 @@ export function validateShelfConfig(input: unknown): ValidationResult {
     ok: true,
     value: {
       version: 1,
-      favoritesOrder,
+      favorites,
       focusedItemId,
       library,
-      favorites: [],
       recent: [],
     },
     warnings,
@@ -159,10 +179,9 @@ export function serializeShelfConfig(config: ShelfConfig): string {
 export function cloneDefault(): ShelfConfig {
   return {
     version: DEFAULT_SHELF_CONFIG.version,
-    favoritesOrder: [...DEFAULT_SHELF_CONFIG.favoritesOrder],
+    favorites: [],
     focusedItemId: DEFAULT_SHELF_CONFIG.focusedItemId,
     library: [],
-    favorites: [],
     recent: [],
   };
 }
@@ -330,9 +349,6 @@ function parseFileRef(
   if (typeof raw.lastOpenedAt === "string" && raw.lastOpenedAt.length > 0) {
     ref.lastOpenedAt = raw.lastOpenedAt;
   }
-  if (typeof raw.favoritedAt === "string" && raw.favoritedAt.length > 0) {
-    ref.favoritedAt = raw.favoritedAt;
-  }
   attachColorLabel(ref, raw.colorLabel, `file(${raw.id})`, warnings);
   return { ok: true, value: ref };
 }
@@ -381,11 +397,65 @@ function parseFolderRef(
   if (typeof raw.lastOpenedAt === "string" && raw.lastOpenedAt.length > 0) {
     ref.lastOpenedAt = raw.lastOpenedAt;
   }
-  if (typeof raw.favoritedAt === "string" && raw.favoritedAt.length > 0) {
-    ref.favoritedAt = raw.favoritedAt;
-  }
   attachColorLabel(ref, raw.colorLabel, `folder(${raw.id})`, warnings);
   return { ok: true, value: ref };
+}
+
+type FavoriteParseResult =
+  | { ok: true; value: Favorite }
+  | { ok: false; error: string };
+
+/**
+ * Parse a single entry from `ShelfConfig.favorites`. Each entry is a
+ * standalone path-based favorite — no Library linkage required.
+ */
+function parseFavorite(
+  raw: unknown,
+  warnings: string[],
+): FavoriteParseResult {
+  if (!isPlainObject(raw)) {
+    return { ok: false, error: "favorite must be an object" };
+  }
+  if (typeof raw.id !== "string" || raw.id.length === 0) {
+    return { ok: false, error: "favorite.id must be a non-empty string" };
+  }
+  if (raw.kind !== "file" && raw.kind !== "folder") {
+    return {
+      ok: false,
+      error: `favorite(${raw.id}).kind must be "file" or "folder"`,
+    };
+  }
+  if (typeof raw.path !== "string" || raw.path.length === 0) {
+    return {
+      ok: false,
+      error: `favorite(${raw.id}).path must be a non-empty string`,
+    };
+  }
+  if (typeof raw.favoritedAt !== "string" || raw.favoritedAt.length === 0) {
+    return {
+      ok: false,
+      error: `favorite(${raw.id}).favoritedAt must be a string`,
+    };
+  }
+  const fav: Favorite = {
+    id: raw.id,
+    kind: raw.kind,
+    path: raw.path,
+    favoritedAt: raw.favoritedAt,
+  };
+  if (raw.alias !== undefined) {
+    const aliasResult = parseLabel(
+      raw.alias,
+      `favorite(${raw.id}).alias`,
+      warnings,
+    );
+    if (!aliasResult.ok) {
+      return aliasResult;
+    }
+    fav.alias = aliasResult.value;
+  }
+  attachColorLabel(fav, raw.colorLabel, `favorite(${raw.id})`, warnings);
+  return { ok: true, value: fav };
 }
 
 /* ─────────────────────── Field-level helpers ─────────────────────── */

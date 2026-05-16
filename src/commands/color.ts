@@ -94,7 +94,14 @@ function applyColor(
         store.setFolderColorLabel(node.folder.id, color);
       }
       return;
-    case "favoritesEntry":
+    case "favoritesEntry": {
+      if (color === null) {
+        store.clearFavoriteColorLabel(node.favorite.id);
+      } else {
+        store.setFavoriteColorLabel(node.favorite.id, color);
+      }
+      return;
+    }
     case "recentEntry": {
       const id = node.ref.id;
       if (node.ref.kind === "file") {

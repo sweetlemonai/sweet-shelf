@@ -85,7 +85,7 @@ export class SweetShelfDragAndDropController
           shelfPayload.push({ kind: "folder", id: node.folder.id });
           break;
         case "favoritesEntry":
-          shelfPayload.push({ kind: "favoritesEntry", id: node.ref.id });
+          shelfPayload.push({ kind: "favoritesEntry", id: node.favorite.id });
           break;
         case "folderEntry":
           // Inline-browsed entries become URI-list payloads. The
@@ -227,7 +227,9 @@ export class SweetShelfDragAndDropController
           // insert before; drop on the view's empty area
           // (target undefined) = append.
           if (target && target.kind === "favoritesEntry") {
-            const targetIdx = this.store.favoritesOrder.indexOf(target.ref.id);
+            const targetIdx = this.store.favorites.findIndex(
+              (f) => f.id === target.favorite.id,
+            );
             if (targetIdx >= 0) {
               this.store.moveFavoriteTo(item.id, targetIdx);
             }
@@ -236,13 +238,17 @@ export class SweetShelfDragAndDropController
           }
           break;
         }
-        case "file": {
-          // Dragging a Library file into Favorites favorites it.
-          this.store.favoriteFile(item.id);
-          break;
-        }
+        case "file":
         case "folder": {
-          this.store.favoriteFolder(item.id);
+          // Dragging a Library file/folder into Favorites adds its
+          // path. The store is path-based now and dedupes on path.
+          const ref =
+            item.kind === "file"
+              ? this.store.findFile(item.id)
+              : this.store.findFolder(item.id);
+          if (ref) {
+            this.store.addFavorite(ref.path, item.kind);
+          }
           break;
         }
         case "category":

@@ -51,6 +51,7 @@ function pathFromNode(node: ShelfNode | undefined): string {
     case "folder":
       return node.folder.path;
     case "favoritesEntry":
+      return node.favorite.path;
     case "recentEntry":
       return node.ref.path;
     case "folderEntry":

@@ -4,8 +4,8 @@ import type { Category, FolderRef } from "./types";
 /**
  * Pure helper that resolves `focusedItemId` against the current
  * library. Files are explicitly not focusable — they'd have nothing
- * to render in the sidebar — so file refs return `null` even if their
- * id matches.
+ * to render in the sidebar — so file refs return `null` even if
+ * their id matches.
  *
  * Called at render time so the result always reflects current state.
  * If the id no longer resolves (removed, hand-edited to garbage,

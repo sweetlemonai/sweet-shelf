@@ -171,12 +171,11 @@ function unwrapFileRef(node: ShelfNode | undefined): FileRef | null {
   if (node.kind === "file") {
     return node.file;
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "file"
-  ) {
+  if (node.kind === "recentEntry" && node.ref.kind === "file") {
     return node.ref;
   }
+  // Rename-on-disk requires a Library ref id for the path-prefix
+  // cascade; favoritesEntry rows don't surface this menu item.
   return null;
 }
 
@@ -187,10 +186,7 @@ function unwrapFolderRef(node: ShelfNode | undefined): FolderRef | null {
   if (node.kind === "folder") {
     return node.folder;
   }
-  if (
-    (node.kind === "favoritesEntry" || node.kind === "recentEntry") &&
-    node.ref.kind === "folder"
-  ) {
+  if (node.kind === "recentEntry" && node.ref.kind === "folder") {
     return node.ref;
   }
   return null;

@@ -12,7 +12,7 @@ import type { ShelfStore } from "../shelf/store";
  * Composes three signals per URI in a single pass over the library:
  *   - `broken` (from the broken-link cache)
  *   - `colorLabel` (from the matching ref)
- *   - `favorited` (from the matching ref's `favoritedAt`)
+ *   - `favorited` (from `store.isFavoritedPath`)
  *
  * Priority per the Task 7 carry-forward: broken wins. A broken ref
  * shows a muted ⚠ and suppresses the star and the color. A non-broken
@@ -92,9 +92,9 @@ export class SweetShelfDecorationProvider
    * the unmatched case is the common one.
    */
   private gatherSignals(path: string): Signals | undefined {
-    let favorited = false;
+    let favorited = this.store.isFavoritedPath(path);
     let colorLabel: ColorLabel | undefined;
-    let matched = false;
+    let matched = favorited;
     for (const node of walkAll(this.store.library)) {
       if (node.kind === "category") {
         continue;
@@ -103,9 +103,6 @@ export class SweetShelfDecorationProvider
         continue;
       }
       matched = true;
-      if (node.favoritedAt !== undefined) {
-        favorited = true;
-      }
       if (node.colorLabel !== undefined) {
         colorLabel = node.colorLabel;
       }
