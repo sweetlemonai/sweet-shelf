@@ -48,6 +48,25 @@ export function pathsEqual(a: string, b: string): boolean {
 }
 
 /**
+ * True when `descendantPath` lives strictly inside `ancestorPath`.
+ * Honors the same case-folding rules as `pathsEqual`. Identical paths
+ * return `false` — use `pathsEqual` for that.
+ */
+export function isDescendantPath(
+  descendantPath: string,
+  ancestorPath: string,
+): boolean {
+  const cd = canonicalizePath(descendantPath);
+  const ca = canonicalizePath(ancestorPath);
+  const ancestorWithSep = ca.endsWith(nodePath.sep) ? ca : ca + nodePath.sep;
+  const caseFold =
+    process.platform === "win32" || process.platform === "darwin";
+  const left = caseFold ? cd.toLowerCase() : cd;
+  const right = caseFold ? ancestorWithSep.toLowerCase() : ancestorWithSep;
+  return left.length > right.length && left.startsWith(right);
+}
+
+/**
  * The basename users see as the default label. Strips trailing slashes
  * for folders ("/foo/bar/" -> "bar"). Empty result falls back to the
  * full path so the tree never renders blank.

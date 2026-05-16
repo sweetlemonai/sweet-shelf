@@ -42,30 +42,25 @@ export function isColorLabel(value: unknown): value is ColorLabel {
 }
 
 /**
- * Map a `ColorLabel` to the VS Code theme-color id used everywhere it
- * surfaces (decoration provider, ThemeIcon for categories). Picking
- * `charts.*` keeps the palette theme-adaptive (light/dark/contrast)
- * without us having to ship hex values.
+ * Map a `ColorLabel` to the Sweet Shelf theme-color id used everywhere
+ * it surfaces (decoration provider, ThemeIcon for categories and
+ * folders). The ids are *contributed* by this extension in package.json
+ * with explicit hex defaults — we avoid VS Code's `charts.*` palette
+ * because popular themes reassign those tokens for charting
+ * aesthetics, which made "orange" render as purple in real-world use.
  */
 export function themeColorIdFor(label: ColorLabel): string {
-  switch (label) {
-    case "red":
-      return "charts.red";
-    case "orange":
-      return "charts.orange";
-    case "yellow":
-      return "charts.yellow";
-    case "green":
-      return "charts.green";
-    case "blue":
-      return "charts.blue";
-    case "purple":
-      return "charts.purple";
-    case "gray":
-      return "charts.foreground";
-    default:
-      return assertNever(label);
-  }
+  return `sweetShelf.color.${label}`;
+}
+
+/**
+ * Muted variant used when a color is *inherited* from an ancestor
+ * shelved folder rather than set directly on the item. Cascading the
+ * primary color verbatim makes children indistinguishable from the
+ * folder itself; the muted token gives them a softer tint.
+ */
+export function mutedThemeColorIdFor(label: ColorLabel): string {
+  return `sweetShelf.color.${label}.muted`;
 }
 
 /** Display label for the picker submenu, with a unicode color square. */

@@ -47,6 +47,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const outcome = await store.load();
   reportLoadOutcome(outcome);
+  // Watch shelf.json so a second VS Code window mutating it shows
+  // up here without a reload. Internal writes from this process are
+  // filtered out inside the store.
+  store.startWatching();
 
   // Activation-time orphan check: if shelf.json says we're focused on
   // something that no longer exists (hand-edited file, weird state),

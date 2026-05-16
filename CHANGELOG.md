@@ -2,6 +2,14 @@
 
 All notable changes to Sweet Shelf are documented here.
 
+## 1.0.1 — Color fidelity, color cascade, cross-window sync
+
+- **Sweet Shelf now ships its own color palette** so orange shows orange, purple shows purple, etc. Themes that reassign VS Code's `charts.*` tokens for chart aesthetics no longer scramble shelf colors.
+- **Folder colors survive selection.** Tinting moved from the row's foreground (which VS Code overrides when a row is selected) to the folder icon itself, so the color stays visible while the row is highlighted.
+- **Colors cascade through subtrees.** When a folder has a color label, every file and sub-folder under it — including inline-browsed contents — picks up a muted variant of that color, so the whole bucket reads as one visual group.
+- **Cross-window sync.** Adding a category or favorite in one VS Code window now shows up in other windows on the same machine automatically — `shelf.json` is watched for external changes and reloaded.
+- **Companion apps are live.** Sweet Markdown and Braindump now render as installable cards in the Settings panel instead of "Coming soon" placeholders.
+
 ## 1.0.0 — Initial release
 
 Sweet Shelf is a personal workspace map for VS Code. The first release ships with:

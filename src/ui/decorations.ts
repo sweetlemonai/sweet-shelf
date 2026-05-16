@@ -1,8 +1,12 @@
 import * as vscode from "vscode";
 
-import { themeColorIdFor, type ColorLabel } from "../shelf/color";
+import {
+  mutedThemeColorIdFor,
+  themeColorIdFor,
+  type ColorLabel,
+} from "../shelf/color";
 import { walkAll } from "../shelf/categories";
-import { pathsEqual } from "../shelf/paths";
+import { isDescendantPath, pathsEqual } from "../shelf/paths";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { ShelfStore } from "../shelf/store";
 
@@ -66,7 +70,11 @@ export class SweetShelfDecorationProvider
         color: new vscode.ThemeColor("disabledForeground"),
       };
     }
-    if (!signals.favorited && signals.colorLabel === undefined) {
+    if (
+      !signals.favorited &&
+      signals.colorLabel === undefined &&
+      signals.inheritedColorLabel === undefined
+    ) {
       return undefined;
     }
     const decoration: vscode.FileDecoration = {};
@@ -74,7 +82,7 @@ export class SweetShelfDecorationProvider
       decoration.badge = "★";
       decoration.tooltip = "Favorite";
     }
-    const colorId = colorIdFor(signals.colorLabel, signals.favorited);
+    const colorId = colorIdFor(signals);
     if (colorId !== null) {
       decoration.color = new vscode.ThemeColor(colorId);
     }
@@ -92,25 +100,37 @@ export class SweetShelfDecorationProvider
    * the unmatched case is the common one.
    */
   private gatherSignals(path: string): Signals | undefined {
-    let favorited = this.store.isFavoritedPath(path);
+    const favorited = this.store.isFavoritedPath(path);
     let colorLabel: ColorLabel | undefined;
     let matched = favorited;
+    let inheritedColorLabel: ColorLabel | undefined;
+    let inheritedAncestorLen = -1;
     for (const node of walkAll(this.store.library)) {
       if (node.kind === "category") {
         continue;
       }
-      if (!pathsEqual(node.path, path)) {
+      if (pathsEqual(node.path, path)) {
+        matched = true;
+        if (node.colorLabel !== undefined) {
+          colorLabel = node.colorLabel;
+        }
         continue;
       }
-      matched = true;
-      if (node.colorLabel !== undefined) {
-        colorLabel = node.colorLabel;
+      // Cascade: a folder ref higher up the tree colors its
+      // descendants with a muted variant so the whole subtree reads
+      // as belonging to that bucket. Closest (longest path) wins so
+      // nested colored folders override their ancestors.
+      if (
+        node.kind === "folder" &&
+        node.colorLabel !== undefined &&
+        isDescendantPath(path, node.path) &&
+        node.path.length > inheritedAncestorLen
+      ) {
+        inheritedColorLabel = node.colorLabel;
+        inheritedAncestorLen = node.path.length;
       }
-      // Don't break — multiple refs to the same path is possible
-      // (rare, but a user could add the same path before our
-      // duplicate-check kicked in across reload boundaries).
     }
-    if (!matched) {
+    if (!matched && inheritedColorLabel === undefined) {
       return undefined;
     }
 
@@ -124,6 +144,9 @@ export class SweetShelfDecorationProvider
     };
     if (colorLabel !== undefined) {
       signals.colorLabel = colorLabel;
+    }
+    if (inheritedColorLabel !== undefined) {
+      signals.inheritedColorLabel = inheritedColorLabel;
     }
     return signals;
   }
@@ -139,23 +162,24 @@ interface Signals {
   broken: boolean;
   favorited: boolean;
   colorLabel?: ColorLabel;
+  /** Color inherited from an ancestor shelved folder, if any. */
+  inheritedColorLabel?: ColorLabel;
 }
 
 /**
- * Resolve the theme color id for the composed decoration. Color label
- * always wins. Otherwise, a favorited-with-no-color ref falls back to
- * `charts.yellow` (Task 6 default). Plain unfavorited and uncolored
- * refs return `null` — no color decoration applied.
+ * Resolve the theme color id for the composed decoration. Priority:
+ * own color label > inherited (muted) ancestor color > favorited
+ * fallback. Plain unfavorited and uncolored refs return `null`.
  */
-function colorIdFor(
-  colorLabel: ColorLabel | undefined,
-  favorited: boolean,
-): string | null {
-  if (colorLabel !== undefined) {
-    return themeColorIdFor(colorLabel);
+function colorIdFor(signals: Signals): string | null {
+  if (signals.colorLabel !== undefined) {
+    return themeColorIdFor(signals.colorLabel);
   }
-  if (favorited) {
-    return "charts.yellow";
+  if (signals.inheritedColorLabel !== undefined) {
+    return mutedThemeColorIdFor(signals.inheritedColorLabel);
+  }
+  if (signals.favorited) {
+    return "sweetShelf.color.yellow";
   }
   return null;
 }

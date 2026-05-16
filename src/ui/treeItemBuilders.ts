@@ -10,7 +10,11 @@ import {
 } from "../shelf/folderEntries";
 import { computeDisambiguator } from "../shelf/disambiguation";
 import { fileDisplayName, folderDisplayName } from "../shelf/labels";
-import { themeColorIdFor, type ColorLabel } from "../shelf/color";
+import {
+  mutedThemeColorIdFor,
+  themeColorIdFor,
+  type ColorLabel,
+} from "../shelf/color";
 import type {
   Category,
   Favorite,
@@ -145,7 +149,7 @@ export function buildFolderTreeItem(
     broken,
   );
   item.resourceUri = vscode.Uri.file(folder.path);
-  item.iconPath = vscode.ThemeIcon.Folder;
+  item.iconPath = folderIcon(folder.colorLabel);
   item.tooltip = brokenTooltip(folder.path, broken, "folder");
   const description = composeDescription(
     computeDisambiguator(folder, library, showExtensions),
@@ -198,7 +202,9 @@ export function buildFavoriteTreeItem(
     broken,
   );
   item.resourceUri = vscode.Uri.file(fav.path);
-  item.iconPath = isFile ? vscode.ThemeIcon.File : vscode.ThemeIcon.Folder;
+  item.iconPath = isFile
+    ? vscode.ThemeIcon.File
+    : folderIcon(fav.colorLabel);
   item.tooltip = brokenTooltip(fav.path, broken, fav.kind);
   if (broken) {
     item.description = "(missing)";
@@ -239,7 +245,9 @@ export function buildRecentEntryTreeItem(
     broken,
   );
   item.resourceUri = vscode.Uri.file(ref.path);
-  item.iconPath = isFile ? vscode.ThemeIcon.File : vscode.ThemeIcon.Folder;
+  item.iconPath = isFile
+    ? vscode.ThemeIcon.File
+    : folderIcon(ref.kind === "folder" ? ref.colorLabel : undefined);
   item.tooltip = brokenTooltip(ref.path, broken, ref.kind);
   const description = composeDescription(
     computeDisambiguator(ref, library, showExtensions),
@@ -267,6 +275,7 @@ export function buildRecentEntryTreeItem(
 export function buildFolderEntryTreeItem(
   node: Extract<ShelfNode, { kind: "folderEntry" }>,
   favorited: boolean,
+  inheritedColorLabel?: ColorLabel,
 ): vscode.TreeItem {
   const collapsible = node.isDirectory
     ? vscode.TreeItemCollapsibleState.Collapsed
@@ -285,7 +294,7 @@ export function buildFolderEntryTreeItem(
     item.contextValue = favorited
       ? "folderEntry.directory.favorited"
       : "folderEntry.directory";
-    item.iconPath = vscode.ThemeIcon.Folder;
+    item.iconPath = inheritedFolderIcon(inheritedColorLabel);
     item.command = {
       command: "sweetShelf._toggleExpand",
       title: "Toggle",
@@ -465,5 +474,42 @@ function categoryIcon(colorLabel: ColorLabel | undefined): vscode.ThemeIcon {
   return new vscode.ThemeIcon(
     "folder",
     new vscode.ThemeColor(themeColorIdFor(colorLabel)),
+  );
+}
+
+/**
+ * Build a folder icon, tinted when the ref has a color label. Tinting
+ * the icon (rather than relying solely on the FileDecorationProvider's
+ * label color) keeps the color visible while the row is selected — VS
+ * Code overrides decoration foreground colors with the selection
+ * foreground, but a ThemeIcon's color survives the selection state.
+ */
+export function folderIcon(
+  colorLabel: ColorLabel | undefined,
+): vscode.ThemeIcon {
+  if (colorLabel === undefined) {
+    return vscode.ThemeIcon.Folder;
+  }
+  return new vscode.ThemeIcon(
+    "folder",
+    new vscode.ThemeColor(themeColorIdFor(colorLabel)),
+  );
+}
+
+/**
+ * Folder icon for an inline-browsed entry whose color is inherited
+ * from an ancestor shelf folder. Uses the muted token so the cascade
+ * reads as a softer background tint rather than competing with the
+ * colored ancestor itself.
+ */
+function inheritedFolderIcon(
+  inheritedColorLabel: ColorLabel | undefined,
+): vscode.ThemeIcon {
+  if (inheritedColorLabel === undefined) {
+    return vscode.ThemeIcon.Folder;
+  }
+  return new vscode.ThemeIcon(
+    "folder",
+    new vscode.ThemeColor(mutedThemeColorIdFor(inheritedColorLabel)),
   );
 }

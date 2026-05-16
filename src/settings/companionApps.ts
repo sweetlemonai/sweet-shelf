@@ -46,7 +46,7 @@ export const COMPANION_APPS: readonly CompanionApp[] = [
     description: "Better preview and editing for markdown files.",
     iconPath: "companion-apps/sweet-markdown.png",
     openCommand: "sweetMarkdown.openPreview",
-    status: "coming-soon",
+    status: "published",
   },
   {
     // Published under the `purple-vision` publisher; surfaced here as
@@ -59,7 +59,7 @@ export const COMPANION_APPS: readonly CompanionApp[] = [
     description: "Frictionless syntax for stream-of-consciousness notes.",
     iconPath: "companion-apps/braindump.png",
     openCommand: "braindump.start",
-    status: "coming-soon",
+    status: "published",
   },
 ];
 

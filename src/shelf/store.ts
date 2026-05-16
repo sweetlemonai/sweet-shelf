@@ -29,6 +29,7 @@ import {
 import {
   canonicalizePath,
   findExistingReferenceByPath,
+  isDescendantPath,
   pathsEqual,
 } from "./paths";
 import { resolveFocus, type FocusedItem } from "./focus";
@@ -44,6 +45,13 @@ import {
 } from "./types";
 
 const WRITE_DEBOUNCE_MS = 200;
+/**
+ * Watcher events fired within this window after an internal write are
+ * treated as the OS echo of that write and ignored. Set comfortably
+ * above the slowest fsync we expect; cross-window mutations land far
+ * outside this window in practice.
+ */
+const EXTERNAL_CHANGE_ECHO_WINDOW_MS = 1000;
 
 /**
  * Outcome of `ShelfStore.load`. Surfaced so the extension entrypoint can
@@ -77,6 +85,15 @@ export class ShelfStore implements vscode.Disposable {
   private storageAvailable = true;
   private pendingWrite: Promise<void> | undefined;
   private brokenLinks: BrokenLinkCache | undefined;
+  private fileWatcher: vscode.FileSystemWatcher | undefined;
+  private fileWatcherSubscriptions: vscode.Disposable[] = [];
+  /**
+   * Last time *this* process wrote shelf.json. Watcher events fired
+   * within a short window of an internal write are assumed to be the
+   * echo of our own write and skipped — anything later is treated as
+   * an external mutation from another VS Code window and reloaded.
+   */
+  private lastInternalWriteAt = 0;
 
   /**
    * @param globalStorageUri The extension's `context.globalStorageUri`.
@@ -175,6 +192,70 @@ export class ShelfStore implements vscode.Disposable {
     return { kind: "recovered-from-invalid", error: result.error };
   }
 
+  /**
+   * Install a watcher on shelf.json so a second VS Code window
+   * mutating the file picks up the change in this window without a
+   * reload. Call after `load()` so the watcher starts armed against
+   * the post-load state. Writes from this process are filtered out
+   * by `lastInternalWriteAt`.
+   */
+  startWatching(): void {
+    if (!this.storageAvailable || this.fileWatcher) {
+      return;
+    }
+    const pattern = new vscode.RelativePattern(
+      this.paths.storageDir,
+      "shelf.json",
+    );
+    this.fileWatcher = vscode.workspace.createFileSystemWatcher(
+      pattern,
+      /* ignoreCreate */ false,
+      /* ignoreChange */ false,
+      /* ignoreDelete */ true,
+    );
+    const onEvent = () => {
+      void this.handleExternalChange();
+    };
+    this.fileWatcherSubscriptions.push(
+      this.fileWatcher.onDidChange(onEvent),
+      this.fileWatcher.onDidCreate(onEvent),
+    );
+  }
+
+  /**
+   * Reload state from disk after another window wrote shelf.json.
+   * Skipped when the event is the echo of our own recent write or
+   * when a write is in flight (the in-flight write is our truth).
+   */
+  private async handleExternalChange(): Promise<void> {
+    const sinceInternal = Date.now() - this.lastInternalWriteAt;
+    if (sinceInternal < EXTERNAL_CHANGE_ECHO_WINDOW_MS) {
+      return;
+    }
+    if (this.pendingWrite) {
+      return;
+    }
+    try {
+      const bytes = await vscode.workspace.fs.readFile(this.paths.configFile);
+      const raw = new TextDecoder("utf-8").decode(bytes);
+      if (raw === serializeShelfConfig(this.state)) {
+        // Identical content — nothing for us to refresh.
+        return;
+      }
+      const result = parseShelfConfig(raw);
+      if (!result.ok) {
+        logWarn(
+          `external shelf.json change was unparseable: ${result.error}. Keeping current state.`,
+        );
+        return;
+      }
+      this.state = result.value;
+      this._onDidChange.fire();
+    } catch (err) {
+      logError("reloading shelf.json after external change", err);
+    }
+  }
+
   /* ─────────────── Lookups ─────────────── */
 
   /** Look up a category by id. */
@@ -237,6 +318,35 @@ export class ShelfStore implements vscode.Disposable {
       return undefined;
     }
     return { parent: result.parent, index: result.index };
+  }
+
+  /**
+   * Closest ancestor shelved folder's color label for an arbitrary
+   * on-disk path, if any. Used by the tree provider to tint inline-
+   * browsed folder icons so a colored folder's whole subtree reads as
+   * one visual bucket. Returns `undefined` when the path itself is
+   * a shelved ref (callers handle the own-color case separately) or
+   * when no colored ancestor exists.
+   */
+  inheritedColorForPath(path: string): ColorLabel | undefined {
+    let best: ColorLabel | undefined;
+    let bestLen = -1;
+    for (const node of walkAll(this.state.library)) {
+      if (node.kind !== "folder" || node.colorLabel === undefined) {
+        continue;
+      }
+      if (pathsEqual(node.path, path)) {
+        continue;
+      }
+      if (
+        isDescendantPath(path, node.path) &&
+        node.path.length > bestLen
+      ) {
+        best = node.colorLabel;
+        bestLen = node.path.length;
+      }
+    }
+    return best;
   }
 
   /* ─────────────── Category mutators ─────────────── */
@@ -1220,7 +1330,9 @@ export class ShelfStore implements vscode.Disposable {
     }
     const bytes = new TextEncoder().encode(serializeShelfConfig(this.state));
     try {
+      this.lastInternalWriteAt = Date.now();
       await vscode.workspace.fs.writeFile(this.paths.configFile, bytes);
+      this.lastInternalWriteAt = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logError("writing shelf.json", err);
@@ -1233,6 +1345,11 @@ export class ShelfStore implements vscode.Disposable {
 
   dispose(): void {
     this.scheduleWrite.cancel();
+    for (const sub of this.fileWatcherSubscriptions) {
+      sub.dispose();
+    }
+    this.fileWatcherSubscriptions = [];
+    this.fileWatcher?.dispose();
     this._onDidChange.dispose();
   }
 }
@@ -1252,24 +1369,6 @@ function collectRefPaths(node: CategoryChild): string[] {
       visit(child);
     }
   }
-}
-
-/**
- * True when `descendant` is strictly inside `ancestor` (not equal).
- * Mirrors `pathsEqual`'s case-folding rules — case-insensitive on
- * macOS / Windows, case-sensitive on Linux. Both inputs should be
- * canonicalized.
- */
-function isDescendantPath(descendant: string, ancestor: string): boolean {
-  if (pathsEqual(descendant, ancestor)) {
-    return false;
-  }
-  const sep = nodePath.sep;
-  const prefix = ancestor.endsWith(sep) ? ancestor : ancestor + sep;
-  if (process.platform === "win32" || process.platform === "darwin") {
-    return descendant.toLowerCase().startsWith(prefix.toLowerCase());
-  }
-  return descendant.startsWith(prefix);
 }
 
 /**
