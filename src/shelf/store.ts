@@ -320,35 +320,6 @@ export class ShelfStore implements vscode.Disposable {
     return { parent: result.parent, index: result.index };
   }
 
-  /**
-   * Closest ancestor shelved folder's color label for an arbitrary
-   * on-disk path, if any. Used by the tree provider to tint inline-
-   * browsed folder icons so a colored folder's whole subtree reads as
-   * one visual bucket. Returns `undefined` when the path itself is
-   * a shelved ref (callers handle the own-color case separately) or
-   * when no colored ancestor exists.
-   */
-  inheritedColorForPath(path: string): ColorLabel | undefined {
-    let best: ColorLabel | undefined;
-    let bestLen = -1;
-    for (const node of walkAll(this.state.library)) {
-      if (node.kind !== "folder" || node.colorLabel === undefined) {
-        continue;
-      }
-      if (pathsEqual(node.path, path)) {
-        continue;
-      }
-      if (
-        isDescendantPath(path, node.path) &&
-        node.path.length > bestLen
-      ) {
-        best = node.colorLabel;
-        bestLen = node.path.length;
-      }
-    }
-    return best;
-  }
-
   /* ─────────────── Category mutators ─────────────── */
 
   /**

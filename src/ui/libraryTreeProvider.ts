@@ -100,7 +100,6 @@ export class LibraryTreeProvider
         return buildFolderEntryTreeItem(
           node,
           this.store.isFavoritedPath(node.uri.fsPath),
-          this.store.inheritedColorForPath(node.uri.fsPath),
         );
       case "folderEntryError":
         return buildFolderEntryErrorTreeItem(node);

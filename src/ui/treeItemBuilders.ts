@@ -10,11 +10,7 @@ import {
 } from "../shelf/folderEntries";
 import { computeDisambiguator } from "../shelf/disambiguation";
 import { fileDisplayName, folderDisplayName } from "../shelf/labels";
-import {
-  mutedThemeColorIdFor,
-  themeColorIdFor,
-  type ColorLabel,
-} from "../shelf/color";
+import { themeColorIdFor, type ColorLabel } from "../shelf/color";
 import type {
   Category,
   Favorite,
@@ -35,29 +31,6 @@ import type {
  * suffix on `contextValue` toggles the menu item between "Add to
  * Favorites" and "Remove from Favorites".
  */
-
-/**
- * Section marker shown on rows whose color is inherited from an
- * ancestor shelf folder. We use colored unicode squares (one per
- * `ColorLabel`) because they carry intrinsic color via the emoji font
- * — VS Code tree labels share one foreground for the whole string, so
- * a regular character like "▌" can't be colored independently of the
- * filename. The colored square keeps its color even when the rest of
- * the label uses the normal foreground.
- */
-const SECTION_MARKER: Record<ColorLabel, string> = {
-  red: "🟥",
-  orange: "🟧",
-  yellow: "🟨",
-  green: "🟩",
-  blue: "🟦",
-  purple: "🟪",
-  gray: "⬜",
-};
-
-export function sectionMarker(colorLabel: ColorLabel): string {
-  return SECTION_MARKER[colorLabel];
-}
 
 /* ────────────────── ShelfNode constructors ────────────────── */
 
@@ -298,16 +271,12 @@ export function buildRecentEntryTreeItem(
 export function buildFolderEntryTreeItem(
   node: Extract<ShelfNode, { kind: "folderEntry" }>,
   favorited: boolean,
-  inheritedColorLabel?: ColorLabel,
 ): vscode.TreeItem {
   const collapsible = node.isDirectory
     ? vscode.TreeItemCollapsibleState.Collapsed
     : vscode.TreeItemCollapsibleState.None;
-  const baseName = nodePath.basename(node.uri.fsPath) || node.uri.fsPath;
   const item = new vscode.TreeItem(
-    inheritedColorLabel !== undefined
-      ? `${sectionMarker(inheritedColorLabel)} ${baseName}`
-      : baseName,
+    nodePath.basename(node.uri.fsPath) || node.uri.fsPath,
     collapsible,
   );
   item.id = folderEntryId(node.uri);
@@ -320,7 +289,7 @@ export function buildFolderEntryTreeItem(
     item.contextValue = favorited
       ? "folderEntry.directory.favorited"
       : "folderEntry.directory";
-    item.iconPath = inheritedFolderIcon(inheritedColorLabel);
+    item.iconPath = vscode.ThemeIcon.Folder;
     item.command = {
       command: "sweetShelf._toggleExpand",
       title: "Toggle",
@@ -519,23 +488,5 @@ export function folderIcon(
   return new vscode.ThemeIcon(
     "folder",
     new vscode.ThemeColor(themeColorIdFor(colorLabel)),
-  );
-}
-
-/**
- * Folder icon for an inline-browsed entry whose color is inherited
- * from an ancestor shelf folder. Uses the muted token so the cascade
- * reads as a softer background tint rather than competing with the
- * colored ancestor itself.
- */
-function inheritedFolderIcon(
-  inheritedColorLabel: ColorLabel | undefined,
-): vscode.ThemeIcon {
-  if (inheritedColorLabel === undefined) {
-    return vscode.ThemeIcon.Folder;
-  }
-  return new vscode.ThemeIcon(
-    "folder",
-    new vscode.ThemeColor(mutedThemeColorIdFor(inheritedColorLabel)),
   );
 }

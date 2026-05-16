@@ -139,12 +139,9 @@ interface Signals {
 }
 
 /**
- * Resolve the theme color id for the composed decoration. Priority:
- * own color label > favorited fallback. We deliberately do NOT tint
- * inherited rows here — the section marker prepended to the label
- * (see `sectionMarker` in `treeItemBuilders.ts`) carries the cascade
- * signal via its intrinsic emoji color, leaving the filename in the
- * normal theme foreground.
+ * Resolve the theme color id for the composed decoration. Color label
+ * always wins; a favorited-with-no-color ref falls back to the shelf
+ * yellow. Plain unfavorited and uncolored refs return `null`.
  */
 function colorIdFor(signals: Signals): string | null {
   if (signals.colorLabel !== undefined) {

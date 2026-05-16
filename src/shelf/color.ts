@@ -53,16 +53,6 @@ export function themeColorIdFor(label: ColorLabel): string {
   return `sweetShelf.color.${label}`;
 }
 
-/**
- * Muted variant used when a color is *inherited* from an ancestor
- * shelved folder rather than set directly on the item. Cascading the
- * primary color verbatim makes children indistinguishable from the
- * folder itself; the muted token gives them a softer tint.
- */
-export function mutedThemeColorIdFor(label: ColorLabel): string {
-  return `sweetShelf.color.${label}.muted`;
-}
-
 /** Display label for the picker submenu, with a unicode color square. */
 export function colorMenuLabel(label: ColorLabel): string {
   switch (label) {

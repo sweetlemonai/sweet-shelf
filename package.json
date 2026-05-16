@@ -72,41 +72,6 @@
         "id": "sweetShelf.color.gray",
         "description": "Sweet Shelf gray label color",
         "defaults": { "dark": "#9aa0a6", "light": "#6e7681", "highContrast": "#c5c5c5" }
-      },
-      {
-        "id": "sweetShelf.color.red.muted",
-        "description": "Sweet Shelf red label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#e34a4a80", "light": "#cd313180", "highContrast": "#f4877180" }
-      },
-      {
-        "id": "sweetShelf.color.orange.muted",
-        "description": "Sweet Shelf orange label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#e08a0080", "light": "#c9700080", "highContrast": "#ffaa6680" }
-      },
-      {
-        "id": "sweetShelf.color.yellow.muted",
-        "description": "Sweet Shelf yellow label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#d4c80080", "light": "#9c870080", "highContrast": "#ffeb3b80" }
-      },
-      {
-        "id": "sweetShelf.color.green.muted",
-        "description": "Sweet Shelf green label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#65c46680", "light": "#388a3480", "highContrast": "#89d18580" }
-      },
-      {
-        "id": "sweetShelf.color.blue.muted",
-        "description": "Sweet Shelf blue label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#3b8bff80", "light": "#0451a580", "highContrast": "#569cd680" }
-      },
-      {
-        "id": "sweetShelf.color.purple.muted",
-        "description": "Sweet Shelf purple label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#b266e080", "light": "#883fbe80", "highContrast": "#c586c080" }
-      },
-      {
-        "id": "sweetShelf.color.gray.muted",
-        "description": "Sweet Shelf gray label color, muted (cascaded to descendants)",
-        "defaults": { "dark": "#9aa0a680", "light": "#6e768180", "highContrast": "#c5c5c580" }
       }
     ],
     "viewsContainers": {
