@@ -37,14 +37,27 @@ import type {
  */
 
 /**
- * Half-block left-edge character used as a "section rail" on rows
- * whose color is inherited from an ancestor shelf folder. Pairs with
- * the muted FileDecoration color (applied in `decorations.ts`) so the
- * rail and label both pick up the section tint, marking the row as
- * part of a colored bucket without competing with the colored
- * ancestor itself.
+ * Section marker shown on rows whose color is inherited from an
+ * ancestor shelf folder. We use colored unicode squares (one per
+ * `ColorLabel`) because they carry intrinsic color via the emoji font
+ * — VS Code tree labels share one foreground for the whole string, so
+ * a regular character like "▌" can't be colored independently of the
+ * filename. The colored square keeps its color even when the rest of
+ * the label uses the normal foreground.
  */
-export const SECTION_RAIL_CHAR = "▌";
+const SECTION_MARKER: Record<ColorLabel, string> = {
+  red: "🟥",
+  orange: "🟧",
+  yellow: "🟨",
+  green: "🟩",
+  blue: "🟦",
+  purple: "🟪",
+  gray: "⬜",
+};
+
+export function sectionMarker(colorLabel: ColorLabel): string {
+  return SECTION_MARKER[colorLabel];
+}
 
 /* ────────────────── ShelfNode constructors ────────────────── */
 
@@ -293,7 +306,7 @@ export function buildFolderEntryTreeItem(
   const baseName = nodePath.basename(node.uri.fsPath) || node.uri.fsPath;
   const item = new vscode.TreeItem(
     inheritedColorLabel !== undefined
-      ? `${SECTION_RAIL_CHAR} ${baseName}`
+      ? `${sectionMarker(inheritedColorLabel)} ${baseName}`
       : baseName,
     collapsible,
   );

@@ -1,12 +1,8 @@
 import * as vscode from "vscode";
 
-import {
-  mutedThemeColorIdFor,
-  themeColorIdFor,
-  type ColorLabel,
-} from "../shelf/color";
+import { themeColorIdFor, type ColorLabel } from "../shelf/color";
 import { walkAll } from "../shelf/categories";
-import { isDescendantPath, pathsEqual } from "../shelf/paths";
+import { pathsEqual } from "../shelf/paths";
 import type { BrokenLinkCache } from "../shelf/brokenLinks";
 import type { ShelfStore } from "../shelf/store";
 
@@ -70,11 +66,7 @@ export class SweetShelfDecorationProvider
         color: new vscode.ThemeColor("disabledForeground"),
       };
     }
-    if (
-      !signals.favorited &&
-      signals.colorLabel === undefined &&
-      signals.inheritedColorLabel === undefined
-    ) {
+    if (!signals.favorited && signals.colorLabel === undefined) {
       return undefined;
     }
     const decoration: vscode.FileDecoration = {};
@@ -103,34 +95,19 @@ export class SweetShelfDecorationProvider
     const favorited = this.store.isFavoritedPath(path);
     let colorLabel: ColorLabel | undefined;
     let matched = favorited;
-    let inheritedColorLabel: ColorLabel | undefined;
-    let inheritedAncestorLen = -1;
     for (const node of walkAll(this.store.library)) {
       if (node.kind === "category") {
         continue;
       }
-      if (pathsEqual(node.path, path)) {
-        matched = true;
-        if (node.colorLabel !== undefined) {
-          colorLabel = node.colorLabel;
-        }
+      if (!pathsEqual(node.path, path)) {
         continue;
       }
-      // Cascade: a folder ref higher up the tree colors its
-      // descendants with a muted variant so the whole subtree reads
-      // as belonging to that bucket. Closest (longest path) wins so
-      // nested colored folders override their ancestors.
-      if (
-        node.kind === "folder" &&
-        node.colorLabel !== undefined &&
-        isDescendantPath(path, node.path) &&
-        node.path.length > inheritedAncestorLen
-      ) {
-        inheritedColorLabel = node.colorLabel;
-        inheritedAncestorLen = node.path.length;
+      matched = true;
+      if (node.colorLabel !== undefined) {
+        colorLabel = node.colorLabel;
       }
     }
-    if (!matched && inheritedColorLabel === undefined) {
+    if (!matched) {
       return undefined;
     }
 
@@ -144,9 +121,6 @@ export class SweetShelfDecorationProvider
     };
     if (colorLabel !== undefined) {
       signals.colorLabel = colorLabel;
-    }
-    if (inheritedColorLabel !== undefined) {
-      signals.inheritedColorLabel = inheritedColorLabel;
     }
     return signals;
   }
@@ -162,21 +136,19 @@ interface Signals {
   broken: boolean;
   favorited: boolean;
   colorLabel?: ColorLabel;
-  /** Color inherited from an ancestor shelved folder, if any. */
-  inheritedColorLabel?: ColorLabel;
 }
 
 /**
  * Resolve the theme color id for the composed decoration. Priority:
- * own color label > inherited (muted) ancestor color > favorited
- * fallback. Plain unfavorited and uncolored refs return `null`.
+ * own color label > favorited fallback. We deliberately do NOT tint
+ * inherited rows here — the section marker prepended to the label
+ * (see `sectionMarker` in `treeItemBuilders.ts`) carries the cascade
+ * signal via its intrinsic emoji color, leaving the filename in the
+ * normal theme foreground.
  */
 function colorIdFor(signals: Signals): string | null {
   if (signals.colorLabel !== undefined) {
     return themeColorIdFor(signals.colorLabel);
-  }
-  if (signals.inheritedColorLabel !== undefined) {
-    return mutedThemeColorIdFor(signals.inheritedColorLabel);
   }
   if (signals.favorited) {
     return "sweetShelf.color.yellow";
