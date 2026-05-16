@@ -36,6 +36,16 @@ import type {
  * Favorites" and "Remove from Favorites".
  */
 
+/**
+ * Half-block left-edge character used as a "section rail" on rows
+ * whose color is inherited from an ancestor shelf folder. Pairs with
+ * the muted FileDecoration color (applied in `decorations.ts`) so the
+ * rail and label both pick up the section tint, marking the row as
+ * part of a colored bucket without competing with the colored
+ * ancestor itself.
+ */
+export const SECTION_RAIL_CHAR = "▌";
+
 /* ────────────────── ShelfNode constructors ────────────────── */
 
 export function buildCategoryNode(
@@ -280,8 +290,11 @@ export function buildFolderEntryTreeItem(
   const collapsible = node.isDirectory
     ? vscode.TreeItemCollapsibleState.Collapsed
     : vscode.TreeItemCollapsibleState.None;
+  const baseName = nodePath.basename(node.uri.fsPath) || node.uri.fsPath;
   const item = new vscode.TreeItem(
-    nodePath.basename(node.uri.fsPath) || node.uri.fsPath,
+    inheritedColorLabel !== undefined
+      ? `${SECTION_RAIL_CHAR} ${baseName}`
+      : baseName,
     collapsible,
   );
   item.id = folderEntryId(node.uri);
