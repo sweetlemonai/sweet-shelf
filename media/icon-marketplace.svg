@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Soft cream background so the dark citrus lines have contrast -->
+  <rect x="8" y="8" width="240" height="240" rx="48" ry="48"
+        fill="#FFF8E7"/>
+  <!-- Sweet Lemon brand yellow border frame -->
+  <rect x="8" y="8" width="240" height="240" rx="48" ry="48"
+        fill="none" stroke="#F4C430" stroke-width="8"/>
+  <!-- Sweet Shelf citrus mark, scaled from the 24×24 sidebar SVG -->
+  <g transform="translate(38 38) scale(7.5)">
+    <path d="M12 12 L17 3.34 A10 10 0 0 1 22 12 Z"
+          fill="#F4C430" stroke="none"/>
+    <g fill="none" stroke="#1F1A14" stroke-width="1.75"
+       stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M2 12 L22 12"/>
+      <path d="M7 3.34 L17 20.66"/>
+      <path d="M7 20.66 L17 3.34"/>
+    </g>
+  </g>
+</svg>

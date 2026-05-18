@@ -2,6 +2,10 @@
 
 All notable changes to Sweet Shelf are documented here.
 
+## 1.0.4 — Marketplace icon border
+
+- Added a soft cream background and a brand-yellow rounded border to the Marketplace icon so the citrus mark stops looking dim against the white listing page.
+
 ## 1.0.3 — Show hidden files toggle now refreshes immediately
 
 - Toggling **Show hidden files** in the Settings panel (or VS Code Settings) now refreshes the Library view immediately. Previously the new value was written to config correctly but the tree didn't re-render until you reloaded the window.
